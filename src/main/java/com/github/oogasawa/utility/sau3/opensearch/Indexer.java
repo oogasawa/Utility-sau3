@@ -4,6 +4,7 @@ package com.github.oogasawa.utility.sau3.opensearch;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,17 +15,16 @@ import com.fasterxml.jackson.core.StreamReadConstraints;
 import org.apache.http.HttpHost;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
-
-
+import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
-
 
 
 
@@ -32,17 +32,14 @@ public class Indexer {
 
     private static final Logger logger = Logger.getLogger(Indexer.class.getName());
 
-    String indexName = "docusaurus";
-    
-    
     String text = null;
     String title = null;
     String url = null;
 
     
-    public void createIndex() {
+    public void createIndex(String indexName) {
 
-        Map<String, Object> jsonMap = this.createMapping();
+        String jsonMap = this.createMapping();
 
 
         RestHighLevelClient client = new RestHighLevelClient(
@@ -53,7 +50,7 @@ public class Indexer {
         CreateIndexRequest request = new CreateIndexRequest(indexName);
 
         // マッピングを設定
-        request.source(jsonMap);
+        request.source(jsonMap, JsonXContent.contentBuilder().contentType());
 
         // インデックスの作成
         CreateIndexResponse createIndexResponse = client.indices().create(request, RequestOptions.DEFAULT);
@@ -75,44 +72,59 @@ public class Indexer {
 
     
 
-    public Map<String, Object> createMapping() {
-        Map<String, Object> jsonMap = new HashMap<>();
-        Map<String, Object> mappings = new HashMap<>();
-        Map<String, Object> properties = new HashMap<>();
-        Map<String, Object> title = new HashMap<>();
-        Map<String, Object> text = new HashMap<>();
-        Map<String, Object> url = new HashMap<>();
+    public String createMapping() {
 
-        title.put("type", "text");
-        text.put("type", "text");
-        url.put("type", "text");
-        properties.put("title", title);
-        properties.put("text", text);
-        properties.put("url", url);
-        mappings.put("properties", properties);
-        jsonMap.put("mappings", mappings);
+        StringJoiner stringJoiner = new StringJoiner("\n");
 
-
-        return jsonMap;
+        stringJoiner.add("{");
+        stringJoiner.add("  \"settings\": {");
+        stringJoiner.add("    \"analysis\": {");
+        stringJoiner.add("      \"analyzer\": {");
+        stringJoiner.add("        \"my_japanese_analyzer\": {");
+        stringJoiner.add("          \"type\": \"kuromoji\"");
+        stringJoiner.add("        }");
+        stringJoiner.add("      }");
+        stringJoiner.add("    }");
+        stringJoiner.add("  },");
+        stringJoiner.add("  \"mappings\": {");
+        stringJoiner.add("    \"properties\": {");
+        stringJoiner.add("      \"text\": {");
+        stringJoiner.add("        \"type\": \"text\",");
+        stringJoiner.add("        \"analyzer\": \"my_japanese_analyzer\"");
+        stringJoiner.add("      },");
+        stringJoiner.add("      \"title\": {");
+        stringJoiner.add("        \"type\": \"text\",");
+        stringJoiner.add("        \"analyzer\": \"my_japanese_analyzer\"");
+        stringJoiner.add("      },");
+        stringJoiner.add("      \"url\": {");
+        stringJoiner.add("        \"type\": \"keyword\"");
+        stringJoiner.add("      }");
+        stringJoiner.add("    }");
+        stringJoiner.add("  }");
+        stringJoiner.add("}");
+        
+        return stringJoiner.toString();
     }
 
 
+
     
-    public void deleteIndexIfExists()  {
+    
+    public void deleteIndexIfExists(String indexName)  {
 
         RestHighLevelClient client = new RestHighLevelClient(
                 RestClient.builder(new HttpHost("localhost", 9200, "http")));
 
         try {
-            GetIndexRequest getIndexRequest = new GetIndexRequest(this.indexName);
+            GetIndexRequest getIndexRequest = new GetIndexRequest(indexName);
             boolean exists = client.indices().exists(getIndexRequest, RequestOptions.DEFAULT);
 
             if (exists) {
-                DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(this.indexName);
+                DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName);
                 client.indices().delete(deleteIndexRequest, RequestOptions.DEFAULT);
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "IOError at deleting: " + this.indexName, e);
+            logger.log(Level.SEVERE, "IOError at deleting: " + indexName, e);
         } finally {
             try {
                 client.close();
@@ -131,8 +143,18 @@ public class Indexer {
         Document doc;
         try {
             doc = Jsoup.connect(url).get();
-            text = doc.body().text(); // Extracts text from the body
-            title = doc.title(); // Extracts the title of the HTML document
+
+            // Select an element with a class name.
+            Element div = doc.select("div.docItemCol_VOVn").first();
+        
+            // When the element is found, get the text.
+            if (div != null) {
+                this.text = div.text();
+            } else { // Extracts text from the body
+                this.text = doc.body().text(); 
+            }
+
+            this.title = doc.title(); // Extracts the title of the HTML document
             this.url = url;
 
         } catch (IOException e) {
@@ -144,7 +166,7 @@ public class Indexer {
 
 
 
-    public void index(String url) throws JsonProcessingException {
+    public void index(String url, String indexName) throws JsonProcessingException {
 
         this.fetchHtml(url);
 

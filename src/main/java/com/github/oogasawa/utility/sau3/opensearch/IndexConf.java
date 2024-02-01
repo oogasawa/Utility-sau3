@@ -12,9 +12,15 @@ public class IndexConf {
 
     private static final Logger logger = Logger.getLogger(IndexConf.class.getName());
 
+    String indexName = "docusaurus_ja";
     List<String> sitemapUrls = new ArrayList<>();
 
 
+    public String getIndexName() {
+        return this.indexName;
+    }
+
+    
     public List<String> getSitemapUrls() {
         return this.sitemapUrls;
     }
@@ -36,8 +42,15 @@ public class IndexConf {
             line = line.trim();
             if (line.matches("\\[sitemap urls\\]")) {
                 status = 1;
-            } else if (status == 1 && line.length() > 0) {
+            }
+            else if (status == 1 && line.length() > 0) {
                 sitemapUrls.add(line);
+            }
+            else if (line.matches("\\[index\\]")) {
+                status = 2;
+            }
+            else if (status == 2 && line.length() > 0) {
+                this.indexName = line.trim();
             }
         }
     }

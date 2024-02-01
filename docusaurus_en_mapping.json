@@ -1,0 +1,17 @@
+{
+    "mappings": {
+        "properties": {
+            "text": {
+                "type": "text",
+            },
+            "title": {
+                "type": "text",
+            },
+            "url": {
+                "type": "text"
+            }
+        }
+    }
+
+}
+,

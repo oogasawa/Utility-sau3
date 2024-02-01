@@ -6,6 +6,7 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import com.github.oogasawa.utility.cli.CliCommands;
+import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
 import com.github.oogasawa.utility.sau3.opensearch.IndexConf;
 import com.github.oogasawa.utility.sau3.opensearch.Indexer;
 import com.github.oogasawa.utility.sau3.opensearch.Sitemap;
@@ -74,9 +75,9 @@ public class App
 
     }
 
-    public void sleep(int sec) {
+    public void sleep(int msec) {
         try {
-            Thread.sleep(sec*1000);
+            Thread.sleep(msec);
         } catch (InterruptedException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
         }
@@ -105,18 +106,19 @@ public class App
 
                             IndexConf indexConf = new IndexConf();
                             Indexer indexer = new Indexer();
-                            indexer.deleteIndexIfExists();
-                            indexer.createIndex();
+                            //indexer.deleteIndexIfExists();
+                            //indexer.createIndex();
                             try {
                                 indexConf.read(configFile);
+                                String indexName = indexConf.getIndexName();
                                 for (String sitemapUrl : indexConf.getSitemapUrls()) {
                                     logger.info(sitemapUrl);
                                     Sitemap sitemap = new Sitemap();
                                     sitemap.parse(sitemapUrl);
                                     for (String docUrl : sitemap.getDocumentUrls()) {
-                                        sleep(1);
+                                        sleep(2000); 
                                         logger.info(docUrl);
-                                        indexer.index(docUrl);
+                                        indexer.index(docUrl, indexName);
                                     }
                                 }
                             } catch (IOException e) {
@@ -128,7 +130,34 @@ public class App
     }
 
 
+    /**  Change the url: setting in docusaurus.config.js to the value given in the options.
+     *
+     */
+    public void docusaurusUrlCommand() {
+        Options opts = new Options();
 
+        opts.addOption(Option.builder("url")
+                        .option("u")
+                        .longOpt("url")
+                        .hasArg(true)
+                        .argName("url")
+                        .desc("Change the URL of the Docusaurus site.")
+                        .required(true)
+                        .build());
+
+
+        this.cmds.addCommand("docusaurus:url", opts,
+                       "Change the URL of the Docusaurus site.",
+                       (CommandLine cl)-> {
+                                 logger.info("docusaurus:url");
+                            String url = cl.getOptionValue("url");
+
+                            DocusaurusConfigUpdator.update(url);
+                       });
+
+    }
+
+    
 
 
 }

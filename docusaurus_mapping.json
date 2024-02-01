@@ -1,0 +1,28 @@
+{
+    "settings": {
+        "analysis": {
+            "analyzer": {
+                "my_japanese_analyzer": {
+                    "type": "kuromoji"
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "text": {
+                "type": "text",
+                "analyzer": "my_japanese_analyzer"
+            },
+            "title": {
+                "type": "text",
+                "analyzer": "my_japanese_analyzer"
+            },
+            "url": {
+                "type": "keyword"
+            }
+        }
+    }
+
+}
+,
