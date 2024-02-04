@@ -3,6 +3,7 @@ package com.github.oogasawa.utility.sau3.configjs;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -15,19 +16,31 @@ public class DocusaurusConfigUpdator {
 
     private static final Logger logger = Logger.getLogger(DocusaurusConfigUpdator.class.getName());
 
-    
-    public static void update(String newUrl) {
-        String filePath = "docusaurus.config.js"; // Original file.
-        String backupFilePath = filePath + ".bak"; // Backup file.
 
-        // Backup the original file.
-        backupFile(filePath, backupFilePath);
-        // replace the URL in the original file.
-        replaceUrlInFile(filePath, newUrl);
+    public static boolean containsStringInUrlLine(String filePath, String searchString) {
+        boolean found = false;
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains("url:") && line.contains(searchString)) {
+                    found = true;
+                    break; // 文字列が見つかったらループを終了
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+        return found;
     }
 
+    
     private static void backupFile(String sourcePath, String destPath) {
         try {
+            if (Files.exists(Paths.get(destPath))) {
+                Files.delete(Paths.get(destPath));
+            }
             Files.copy(Paths.get(sourcePath), Paths.get(destPath));
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Failed to backup the file.", e);
@@ -56,4 +69,30 @@ public class DocusaurusConfigUpdator {
             logger.log(Level.SEVERE, "Failed to replace the URL in the file.", e);
         }
     }
+
+
+    public static void update(String newUrl) {
+        update(newUrl, null);
+    }
+
+    
+    public static void update(String newUrl, File sauDir) {
+        if (sauDir == null) {
+            // Get the current directory.
+            sauDir =System.getProperty("user.dir") != null ? new File(System.getProperty("user.dir")) : new File("."); 
+        }
+
+        String filePath = sauDir.getAbsolutePath() + "/docusaurus.config.js"; // Original file.
+        String backupFilePath = filePath + ".bak"; // Backup file.
+
+        if (!containsStringInUrlLine(filePath, newUrl)) {
+            // Backup the original file.
+            backupFile(filePath, backupFilePath);
+            // replace the URL in the original file.
+            replaceUrlInFile(filePath, newUrl);
+        }
+
+    }
+
+    
 }
