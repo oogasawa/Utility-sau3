@@ -127,7 +127,7 @@ public class App
                                     Sitemap sitemap = new Sitemap();
                                     sitemap.parse(sitemapUrl);
                                     for (String docUrl : sitemap.getDocumentUrls()) {
-                                        sleep(2000); 
+                                        sleep(1000); 
                                         logger.info(docUrl);
                                         indexer.index(docUrl, indexName);
                                     }
