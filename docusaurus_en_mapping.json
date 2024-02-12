@@ -1,17 +1,17 @@
 {
-    "mappings": {
-        "properties": {
-            "text": {
-                "type": "text",
-            },
-            "title": {
-                "type": "text",
-            },
-            "url": {
-                "type": "text"
-            }
-        }
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "text": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "url": {
+        "type": "text"
+      }
     }
-
+  }
 }
-,
