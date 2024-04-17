@@ -4,12 +4,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class GitPuller {
 
-    private static final Logger logger = Logger.getLogger(GitPuller.class.getName());
+     private static final Logger logger = LoggerFactory.getLogger(GitPuller.class);
+
 
     public void pull(Path baseDir) {
         try {
@@ -35,15 +38,15 @@ public class GitPuller {
                     process.waitFor();
 
                 } catch (IOException e) {
-                    logger.log(Level.SEVERE, "IOException occurs in the directory: " + p.toString(), e);
+                    logger.error("IOException occurs in the directory: " + p.toString(), e);
                 } catch (InterruptedException e) {
-                    logger.log(Level.WARNING, "Interrupted", e);
+                    logger.warn("Interrupted", e);
                 }
 
             });
 
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "IOException occurs while accessing: " + baseDir.toString(), e);
+            logger.error("IOException occurs while accessing: " + baseDir.toString(), e);
         }
     }
 

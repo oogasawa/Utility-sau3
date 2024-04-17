@@ -15,13 +15,15 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 
 public class Sitemap {
 
-    private static final Logger logger = Logger.getLogger(Sitemap.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Sitemap.class);
     
     List<String> documentUrls = new ArrayList<>();
 
@@ -32,6 +34,10 @@ public class Sitemap {
     }
     
 
+    /** Parses {@code sitemap.xml}
+     *
+     * @param urlStrOfSitemapXml  URL of sitemap.xml
+     */
     public void parse(String urlStrOfSitemapXml) {
         try {
 
@@ -55,16 +61,13 @@ public class Sitemap {
                     }
                 }
             }
-        } catch (XMLStreamException | FileNotFoundException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
-        } catch (URISyntaxException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        } catch (XMLStreamException
+                 | FileNotFoundException
+                 | URISyntaxException
+                 | MalformedURLException e) {
+            logger.error("Unable to access sitemap.xml", e);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+            logger.error("General IOException", e);
         }
         
 
@@ -87,7 +90,7 @@ public class Sitemap {
                 }
             }
         } catch (XMLStreamException e) {
-            e.printStackTrace();
+            logger.error("XMLStreamException", e);
         }
         return url;
     }

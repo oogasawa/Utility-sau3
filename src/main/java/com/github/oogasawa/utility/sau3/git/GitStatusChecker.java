@@ -7,14 +7,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class GitStatusChecker {
 
-    private static final Logger logger = Logger.getLogger(GitStatusChecker.class.getName());
+     private static final Logger logger = LoggerFactory.getLogger(GitStatusChecker.class);
     
     public void check(Path baseDir) {
         try {
@@ -59,13 +60,13 @@ public class GitStatusChecker {
                 } catch (IOException e) {
                     System.out.println(" ... not pushed");
                 } catch (InterruptedException e) {
-                    logger.log(Level.WARNING, "Interrupted", e);
+                    logger.warn("Interrupted", e);
                 }
 
             });
 
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "IOException occurs while accessing: " + baseDir.toString(), e);
+            logger.error("IOException occurs while accessing: " + baseDir.toString(), e);
         }
     }
 

@@ -1,16 +1,15 @@
 package com.github.oogasawa.utility.sau3.opensearch;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
+
+
 
 public class IndexConf {
 
-    private static final Logger logger = Logger.getLogger(IndexConf.class.getName());
 
     String indexName = "docusaurus_ja";
     List<String> sitemapUrls = new ArrayList<>();

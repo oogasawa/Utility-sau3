@@ -5,14 +5,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 public class MdGenerator {
 
-    private static final Logger logger = Logger.getLogger(MdGenerator.class.getName());
+     private static final Logger logger = LoggerFactory.getLogger(MdGenerator.class);
     
     /**  Default constructor. */
     public MdGenerator() {}
@@ -68,10 +70,10 @@ public class MdGenerator {
             Files.write(mdFilePath, lines);
         }
         catch (IOException e) {
-            logger.log(Level.SEVERE, "Can not create a file " + docId + ".md", e);
+            logger.error("Can not create a file " + docId + ".md", e);
         }
         catch (InterruptedException e) {
-            logger.log(Level.WARNING, "Interrupted", e);
+            logger.warn("Interrupted", e);
         }
     }
 

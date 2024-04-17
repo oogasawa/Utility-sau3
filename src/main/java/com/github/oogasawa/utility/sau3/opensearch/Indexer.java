@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,10 +25,12 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Indexer {
 
-    private static final Logger logger = Logger.getLogger(Indexer.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Indexer.class);
 
     String text = null;
     String title = null;
@@ -58,13 +58,13 @@ public class Indexer {
 
         }
         catch (IOException e) {
-            //logger.log(Level.SEVERE, "IOError at creating a mapping: " + jsonString, e);
+            logger.error("IOError at creating a mapping.", e);
         }
         finally {
             try {
                 client.close();
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Failed to close the client.", e);
+                logger.error("Failed to close the client.", e);
             }    
         }
         
@@ -124,12 +124,12 @@ public class Indexer {
                 client.indices().delete(deleteIndexRequest, RequestOptions.DEFAULT);
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "IOError at deleting: " + indexName, e);
+            logger.error("IOError at deleting: " + indexName, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Failed to close the client.", e);
+                logger.error("Failed to close the client.", e);
             }
         }
 
@@ -158,7 +158,7 @@ public class Indexer {
             this.url = url;
 
         } catch (IOException e) {
-            logger.log(Level.SEVERE,
+            logger.error(
                     "Failed to fetch the document from the URL: " + url + "\n" + e.getMessage(), e);
         }
 
@@ -185,12 +185,12 @@ public class Indexer {
             client.index(new org.opensearch.action.index.IndexRequest(indexName).source(jsonString, XContentType.JSON),
                     RequestOptions.DEFAULT);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "IOError at indexing: " + jsonString, e);
+            logger.error("IOError at indexing: " + jsonString, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Failed to close the client.", e);
+                logger.error("Failed to close the client.", e);
             }
         }
     }

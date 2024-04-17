@@ -2,9 +2,6 @@ package com.github.oogasawa.utility.sau3;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
-import java.util.logging.Logger;
 
 import com.github.oogasawa.utility.cli.CliCommands;
 import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
@@ -21,13 +18,15 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 
 public class App
 {
 
-    private static final Logger logger = Logger.getLogger(App.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(App.class);
 
     String      synopsis = "java -jar Utility-sau3-fat.jar <command> <options>";
     CliCommands cmds     = new CliCommands();
@@ -38,12 +37,12 @@ public class App
     {
         App app = new App();
 
-        try {
-            LogManager.getLogManager()
-                    .readConfiguration(App.class.getClassLoader().getResourceAsStream("logging.properties"));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // try {
+        //     LogManager.getLogManager()
+        //             .readConfiguration(App.class.getClassLoader().getResourceAsStream("logging.properties"));
+        // } catch (IOException e) {
+        //     e.printStackTrace();
+        // }
 
         
         app.setupCommands();
@@ -75,14 +74,17 @@ public class App
 
     
     public void setupCommands() {
-    
+
+        docusaurusDeployCommand();
         docusaurusIndexCommand();
         docusaurusUrlCommand();
         gitpullCommand();
         gitStatusCommand();
+        javadocBuildAllCommand();
+        javadocDeployCommand();
         mdGenerateCommand();
         mdRenameCommand();
-        sauBuildCommand();
+        docusaurusBuildAllCommand();
 
     }
 
@@ -90,10 +92,110 @@ public class App
         try {
             Thread.sleep(msec);
         } catch (InterruptedException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+            logger.warn("Interrupted", e);
         }
     }
 
+
+    
+    /** Build docusaurus documents on all subdirectories.
+    */
+    public void docusaurusBuildAllCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("srcBaseDir")
+                        .option("s")
+                        .longOpt("srcBaseDir")
+                        .hasArg(true)
+                        // .argName("file")
+                        .desc("Source base directory. (e.g., $HOME/works)")
+                        .required(false)
+                        .build());
+
+        
+        opts.addOption(Option.builder("targetBaseDir")
+                        .option("t")
+                        .longOpt("targetBaseDir")
+                        .hasArg(true)
+                        // .argName("file")
+                        .desc("Target base directory. (e.g. $HOME/public_html)")
+                        .required(false)
+                        .build());
+
+        
+        opts.addOption(Option.builder("url")
+                        .option("u")
+                        .longOpt("url")
+                        .hasArg(true)
+                        .argName("url")
+                        .desc("Change the URL of the Docusaurus site.")
+                        .required(false)
+                        .build());
+
+        
+        this.cmds.addCommand("docusaurus:buildAll", opts,
+                "Build docusaurus documents on all subdirectories.",
+                             
+                (CommandLine cl) -> {
+
+                    DocusaurusProcessor builder = new DocusaurusProcessor();
+                    String srcBasedir = cl.getOptionValue("srcBaseDir", System.getenv("HOME") + "/works");
+                    String targetBasedir = cl.getOptionValue("targetBaseDir", System.getenv("HOME") + "/public_html");
+                    //String url = cl.getOptionValue("url");
+
+                    builder.buildAll(Path.of(srcBasedir), Path.of(targetBasedir));
+                });
+
+    }    
+
+
+
+
+    /** Build docusaurus documents on all subdirectories.
+    */
+    public void docusaurusDeployCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("srcdir")
+                        .option("s")
+                        .longOpt("srcdir")
+                        .hasArg(true)
+                        .argName("srcdir")
+                        .desc("docusaurus directory. (default: current directory)")
+                        .required(false)
+                        .build());
+
+        opts.addOption(Option.builder("targetdir")
+                        .option("t")
+                        .longOpt("targetdir")
+                        .hasArg(true)
+                        .argName("url")
+                        .desc("target directory. (default: $HOME/public_html)")
+                        .required(false)
+                        .build());
+
+        
+        this.cmds.addCommand("docusaurus:deploy", opts,
+                "Build docusaurus documents and deploy them on the target directory.",
+                             
+                (CommandLine cl) -> {
+
+
+                    String srcdir = cl.getOptionValue("srcdir", System.getenv("PWD"));
+                    Path srcPath = Path.of(srcdir);
+                    Path docName = srcPath.getFileName();
+                    String destdir = cl.getOptionValue("targetdir",
+                                                         System.getenv("HOME") + "/public_html/" + docName.toString());
+
+                    DocusaurusProcessor builder = new DocusaurusProcessor();
+                    builder.buildAndDeploy(Path.of(srcdir), Path.of(destdir));
+                });
+
+    }    
+
+
+
+    
     
     /**  docusaurus:index  */
     public void docusaurusIndexCommand() {
@@ -133,8 +235,9 @@ public class App
                                     }
                                 }
                             } catch (IOException e) {
-                                logger.log(Level.SEVERE,
-                                           String.format("Can not read %s : %s", configFile, e.getMessage()), e);
+                                logger.error(String.format("Can not read %s : %s",
+                                                           configFile, e.getMessage()),
+                                             e);
                             }
                        });
 
@@ -239,6 +342,88 @@ public class App
 
 
     
+    /** Build javadoc on all subdirectories.
+    */
+    public void javadocBuildAllCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("srcBaseDir")
+                        .option("s")
+                        .longOpt("srcBaseDir")
+                        .hasArg(true)
+                        // .argName("file")
+                        .desc("Source base directory. (e.g., $HOME/works)")
+                        .required(false)
+                        .build());
+
+        
+        opts.addOption(Option.builder("targetBaseDir")
+                        .option("t")
+                        .longOpt("targetBaseDir")
+                        .hasArg(true)
+                        // .argName("file")
+                        .desc("Target base directory. (e.g. $HOME/public_html/javadoc)")
+                        .required(false)
+                        .build());
+
+        
+        this.cmds.addCommand("javadoc:buildAll", opts,
+                "Build javadoc on all subdirectories.",
+                             
+                (CommandLine cl) -> {
+
+                    JavadocProcessor builder = new JavadocProcessor();
+                    String srcBasedir = cl.getOptionValue("srcBaseDir", System.getenv("HOME") + "/works");
+                    String targetBasedir = cl.getOptionValue("targetBaseDir", System.getenv("HOME") + "/public_html/javadoc");
+
+                    builder.buildAll(Path.of(srcBasedir), Path.of(targetBasedir));
+                });
+
+    }    
+
+    
+
+
+    public void javadocDeployCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("srcdir")
+                        .option("s")
+                        .longOpt("srcdir")
+                        .hasArg(true)
+                        .argName("srcdir")
+                        .desc("The directory where the project is located. (default: current directory)")
+                        .required(false)
+                        .build());
+
+
+        opts.addOption(Option.builder("destdir")
+                        .option("d")
+                        .longOpt("destdir")
+                        .hasArg(true)
+                        .argName("destdir")
+                        .desc("The directory to which the javadoc files are deployed. (default: $HOME/public_html/javadoc/projectname)")
+                        .required(false)
+                        .build());
+
+        
+        this.cmds.addCommand("javadoc:deploy", opts,
+                       "Build and deploy javadoc files.",
+                       (CommandLine cl)-> {
+                                 
+                            String srcdir = cl.getOptionValue("srcdir", System.getenv("PWD"));
+                            String destdir = cl.getOptionValue("destdir", System.getenv("HOME") + "/public_html/javadoc/" + Path.of(srcdir).getFileName().toString());
+
+                            JavadocProcessor processor = new JavadocProcessor();
+                            processor.buildAndDeploy(Path.of(srcdir), Path.of(destdir));
+                            logger.info("javadoc:deploy complete.");
+                       });
+
+    }
+
+
+    
+    
     /**  Generate a docusaurus document template.
      *
      */
@@ -323,53 +508,6 @@ public class App
      * }</pre>
      * 
      * 
-     * <hr />
-     *
-     * Docusaurus文書名の変更
-     * 
-     * <h4>前提</h4>
-     * 
-     * <ul>
-     * <li>markdownの文章は、その中で使われている画像ファイルなどとともに独立のディレクトリに置く。つまり１つのmarkdownファイルに対して1つのディレクトリが対応する。</li>
-     * <li>このディレクトリとmarkdownファイルは同じ名前とする。またmarkdownファイルのIDもファイル名と同じ文字列にする。</li>
-     * </ul>
-     *
-     * 例えば以下のようになる。
-     *
-     * <pre>{@code 
-     * $ tree
-     * .
-     * └── 080_ProcessDB_230720_akats01
-     *     ├── 080_ProcessDB_230720_akats01.md
-     *     ├── process_db_1.png
-     *     ├── process_db_2.png
-     *     ├── process_db_3.png
-     *     └── process_db_4.png
-     * 
-     * }</pre>
-     *
-     * ここで{@code  080_ProcessDB_230720_akats01.md}のIDは{@code 080_ProcessDB_230720_akats01}とする。
-     *
-     * <pre>{@code 
-     * $ head -n 5 080_ProcessDB_230720_akats01/080_ProcessDB_230720_akats01.md 
-     * ---
-     * id: 080_ProcessDB_230720_akats01
-     * title: "プロセスデータベース"
-     * ---
-     *
-     * }</pre>
-     *
-     * <h4>使い方</h4>
-     *
-     * 以下のように呼び出すと、ディレクトリ名、そのディレクトリの中のファイル名、ファイルの中のID
-     * (これらはすべて同じ名前を持ち、その名前は{@code -f}の引数で指定されている)を`-t`の引数で与えられた名前に変更する。
-     * 
-     * <pre>{@code
-     * java -jar Utility-sau-fat.jar md:changeName -f 000_ProcessDB_230720_akats01 -t 010_ProcessDB_230720_akats01 
-     * }</pre>
-     * 
-     *
-     * 
      */
     public void mdRenameCommand() {
         Options opts = new Options();
@@ -408,48 +546,6 @@ public class App
 
     }    
     
-
-    /** Build docusaurus documents on all subdirectories.
-    */
-    public void sauBuildCommand() {
-        Options opts = new Options();
-
-        opts.addOption(Option.builder("dir")
-                        .option("d")
-                        .longOpt("dir")
-                        .hasArg(true)
-                        // .argName("file")
-                        .desc("Target base directory.")
-                        .required(false)
-                        .build());
-
-        opts.addOption(Option.builder("url")
-                        .option("u")
-                        .longOpt("url")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("Change the URL of the Docusaurus site.")
-                        .required(false)
-                        .build());
-
-        
-        this.cmds.addCommand("sau:build", opts,
-                "Build docusaurus documents on all subdirectories.",
-                             
-                (CommandLine cl) -> {
-
-                    SauBuilder builder = new SauBuilder();
-                    String dir = cl.getOptionValue("dir");
-                    String url = cl.getOptionValue("url");
-                    if (dir == null) {
-                        dir = System.getenv("PWD");
-                    }
-
-                    builder.buildAll(Path.of(dir), url);
-                });
-
-    }    
-
 
 
 }
