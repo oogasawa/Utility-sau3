@@ -5,6 +5,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
+import com.github.oogasawa.utility.process.ProcessFacade;
+import com.github.oogasawa.utility.process.ProcessFacade.StdioData;
+import com.github.oogasawa.utility.process.ProcessFacade.StdioMode;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,42 +18,25 @@ public class GitPuller {
      private static final Logger logger = LoggerFactory.getLogger(GitPuller.class);
 
 
-    public void pull(Path baseDir) {
+    public void pullAll(Path baseDir) {
         try {
 
-            Files.list(baseDir).sorted().filter((p) -> {
+            Files.list(baseDir).sorted().filter((Path p) -> {
                 return p.toFile().isDirectory();
-            }).forEach((p) -> {
+            }).forEach((Path p) -> {
 
-                Process process = null;
-                String targetDir = p.toAbsolutePath().toString();
-                System.out.println("## " + targetDir);
-                
-                try {
-                    ProcessBuilder builder = new ProcessBuilder("git", "pull");
-                    Map<String, String> env = builder.environment();
-                    env.put("LANG", "en_US.UTF-8");
+                ProcessFacade pf = new ProcessFacade();
 
-                    process = builder
-                        .directory(p.toFile())
-                        .inheritIO()
-                        .start();
-
-                    process.waitFor();
-
-                } catch (IOException e) {
-                    logger.error("IOException occurs in the directory: " + p.toString(), e);
-                } catch (InterruptedException e) {
-                    logger.warn("Interrupted", e);
-                }
-
-            });
+                System.out.println("## " + p.toString());
+                StdioData result = pf.directory(p)
+                    .environment("LANG", "en_US.UTF-8")
+                    .stdioMode(StdioMode.INHERIT_AND_STORE)
+                    .exec("git", "pull");
+                });
 
         } catch (IOException e) {
-            logger.error("IOException occurs while accessing: " + baseDir.toString(), e);
+            logger.error("IOException", e);
         }
     }
-
-    
     
 }

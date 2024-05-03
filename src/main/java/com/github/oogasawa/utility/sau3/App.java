@@ -75,17 +75,19 @@ public class App
     
     public void setupCommands() {
 
-        docusaurusDeployCommand();
-        docusaurusIndexCommand();
-        docusaurusUrlCommand();
         gitpullCommand();
         gitStatusCommand();
         javadocBuildAllCommand();
         javadocDeployCommand();
         mdGenerateCommand();
         mdRenameCommand();
-        docusaurusBuildAllCommand();
 
+        sauBuildAllCommand();
+        sauDeployCommand();
+        sauIndexCommand();
+        sauUrlCommand();
+
+        
     }
 
     public void sleep(int msec) {
@@ -97,179 +99,6 @@ public class App
     }
 
 
-    
-    /** Build docusaurus documents on all subdirectories.
-    */
-    public void docusaurusBuildAllCommand() {
-        Options opts = new Options();
-
-        opts.addOption(Option.builder("srcBaseDir")
-                        .option("s")
-                        .longOpt("srcBaseDir")
-                        .hasArg(true)
-                        // .argName("file")
-                        .desc("Source base directory. (e.g., $HOME/works)")
-                        .required(false)
-                        .build());
-
-        
-        opts.addOption(Option.builder("targetBaseDir")
-                        .option("t")
-                        .longOpt("targetBaseDir")
-                        .hasArg(true)
-                        // .argName("file")
-                        .desc("Target base directory. (e.g. $HOME/public_html)")
-                        .required(false)
-                        .build());
-
-        
-        opts.addOption(Option.builder("url")
-                        .option("u")
-                        .longOpt("url")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("Change the URL of the Docusaurus site.")
-                        .required(false)
-                        .build());
-
-        
-        this.cmds.addCommand("docusaurus:buildAll", opts,
-                "Build docusaurus documents on all subdirectories.",
-                             
-                (CommandLine cl) -> {
-
-                    DocusaurusProcessor builder = new DocusaurusProcessor();
-                    String srcBasedir = cl.getOptionValue("srcBaseDir", System.getenv("HOME") + "/works");
-                    String targetBasedir = cl.getOptionValue("targetBaseDir", System.getenv("HOME") + "/public_html");
-                    //String url = cl.getOptionValue("url");
-
-                    builder.buildAll(Path.of(srcBasedir), Path.of(targetBasedir));
-                });
-
-    }    
-
-
-
-
-    /** Build docusaurus documents on all subdirectories.
-    */
-    public void docusaurusDeployCommand() {
-        Options opts = new Options();
-
-        opts.addOption(Option.builder("srcdir")
-                        .option("s")
-                        .longOpt("srcdir")
-                        .hasArg(true)
-                        .argName("srcdir")
-                        .desc("docusaurus directory. (default: current directory)")
-                        .required(false)
-                        .build());
-
-        opts.addOption(Option.builder("targetdir")
-                        .option("t")
-                        .longOpt("targetdir")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("target directory. (default: $HOME/public_html)")
-                        .required(false)
-                        .build());
-
-        
-        this.cmds.addCommand("docusaurus:deploy", opts,
-                "Build docusaurus documents and deploy them on the target directory.",
-                             
-                (CommandLine cl) -> {
-
-
-                    String srcdir = cl.getOptionValue("srcdir", System.getenv("PWD"));
-                    Path srcPath = Path.of(srcdir);
-                    Path docName = srcPath.getFileName();
-                    String destdir = cl.getOptionValue("targetdir",
-                                                         System.getenv("HOME") + "/public_html/" + docName.toString());
-
-                    DocusaurusProcessor builder = new DocusaurusProcessor();
-                    builder.buildAndDeploy(Path.of(srcdir), Path.of(destdir));
-                });
-
-    }    
-
-
-
-    
-    
-    /**  docusaurus:index  */
-    public void docusaurusIndexCommand() {
-        Options opts = new Options();
-
-        opts.addOption(Option.builder("conf")
-                        .option("c")
-                        .longOpt("conf")
-                        .hasArg(true)
-                        .argName("conf")
-                        .desc("Configuration file.")
-                        .required(true)
-                        .build());
-
-
-        this.cmds.addCommand("docusaurus:index", opts,
-                       "Making a full text index of multiple Docusaurus sites.",
-                       (CommandLine cl)-> {
-                                 logger.info("docusaurus:index");
-                            String configFile = cl.getOptionValue("conf");
-
-                            IndexConf indexConf = new IndexConf();
-                            Indexer indexer = new Indexer();
-                            //indexer.deleteIndexIfExists();
-                            //indexer.createIndex();
-                            try {
-                                indexConf.read(configFile);
-                                String indexName = indexConf.getIndexName();
-                                for (String sitemapUrl : indexConf.getSitemapUrls()) {
-                                    logger.info(sitemapUrl);
-                                    Sitemap sitemap = new Sitemap();
-                                    sitemap.parse(sitemapUrl);
-                                    for (String docUrl : sitemap.getDocumentUrls()) {
-                                        sleep(1000); 
-                                        logger.info(docUrl);
-                                        indexer.index(docUrl, indexName);
-                                    }
-                                }
-                            } catch (IOException e) {
-                                logger.error(String.format("Can not read %s : %s",
-                                                           configFile, e.getMessage()),
-                                             e);
-                            }
-                       });
-
-    }
-
-
-    /**  Change the url: setting in docusaurus.config.js to the value given in the options.
-     *
-     */
-    public void docusaurusUrlCommand() {
-        Options opts = new Options();
-
-        opts.addOption(Option.builder("url")
-                        .option("u")
-                        .longOpt("url")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("Change the URL of the Docusaurus site.")
-                        .required(true)
-                        .build());
-
-
-        this.cmds.addCommand("docusaurus:url", opts,
-                       "Change the URL of the Docusaurus site.",
-                       (CommandLine cl)-> {
-                                 logger.info("docusaurus:url");
-                            String url = cl.getOptionValue("url");
-
-                            DocusaurusConfigUpdator.update(url);
-                       });
-
-    }
 
     
 
@@ -298,8 +127,7 @@ public class App
                                      dir = System.getenv("PWD");
                                  }
 
-                                 git.pull(Path.of(dir));
-
+                                 git.pullAll(Path.of(dir));
                        });
 
     }
@@ -545,6 +373,183 @@ public class App
                 });
 
     }    
+
+
+
+    
+    /** Build docusaurus documents on all subdirectories.
+    */
+    public void sauBuildAllCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("srcBaseDir")
+                        .option("s")
+                        .longOpt("srcBaseDir")
+                        .hasArg(true)
+                        // .argName("file")
+                        .desc("Source base directory. (e.g., $HOME/works)")
+                        .required(true)
+                        .build());
+
+        
+        opts.addOption(Option.builder("targetBaseDir")
+                        .option("t")
+                        .longOpt("targetBaseDir")
+                        .hasArg(true)
+                        // .argName("file")
+                        .desc("Target base directory. (e.g. $HOME/public_html)")
+                        .required(false)
+                        .build());
+
+        
+        opts.addOption(Option.builder("url")
+                        .option("u")
+                        .longOpt("url")
+                        .hasArg(true)
+                        .argName("url")
+                        .desc("Change the URL of the Docusaurus site.")
+                        .required(false)
+                        .build());
+
+        
+        this.cmds.addCommand("sau:buildAll", opts,
+                "Build docusaurus documents on all subdirectories.",
+                             
+                (CommandLine cl) -> {
+
+                    DocusaurusProcessor builder = new DocusaurusProcessor();
+                    String srcBasedir = cl.getOptionValue("srcBaseDir", System.getenv("HOME") + "/works");
+                    String targetBasedir = cl.getOptionValue("targetBaseDir", System.getenv("HOME") + "/public_html");
+                    //String url = cl.getOptionValue("url");
+
+                    builder.buildAll(Path.of(srcBasedir), Path.of(targetBasedir));
+                });
+
+    }    
+
+
+
+
+    /** Build docusaurus documents on all subdirectories.
+    */
+    public void sauDeployCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("srcdir")
+                        .option("s")
+                        .longOpt("srcdir")
+                        .hasArg(true)
+                        .argName("srcdir")
+                        .desc("docusaurus directory. (default: current directory)")
+                        .required(false)
+                        .build());
+
+        opts.addOption(Option.builder("targetdir")
+                        .option("t")
+                        .longOpt("targetdir")
+                        .hasArg(true)
+                        .argName("url")
+                        .desc("target directory. (default: $HOME/public_html)")
+                        .required(false)
+                        .build());
+
+        
+        this.cmds.addCommand("sau:deploy", opts,
+                "Build docusaurus documents and deploy them on the target directory.",
+                             
+                (CommandLine cl) -> {
+
+
+                    String srcdir = cl.getOptionValue("srcdir", System.getenv("PWD"));
+                    Path srcPath = Path.of(srcdir);
+                    Path docName = srcPath.getFileName();
+                    String destdir = cl.getOptionValue("targetdir",
+                                                         System.getenv("HOME") + "/public_html/" + docName.toString());
+
+                    DocusaurusProcessor builder = new DocusaurusProcessor();
+                    builder.buildAndDeploy(Path.of(srcdir), Path.of(destdir));
+                });
+
+    }    
+
+
+
+    
+    
+    /**  docusaurus:index  */
+    public void sauIndexCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("conf")
+                        .option("c")
+                        .longOpt("conf")
+                        .hasArg(true)
+                        .argName("conf")
+                        .desc("Configuration file.")
+                        .required(true)
+                        .build());
+
+
+        this.cmds.addCommand("sau:index", opts,
+                       "Making a full text index of multiple Docusaurus sites.",
+                       (CommandLine cl)-> {
+                                 logger.info("docusaurus:index");
+                            String configFile = cl.getOptionValue("conf");
+
+                            IndexConf indexConf = new IndexConf();
+                            Indexer indexer = new Indexer();
+                            //indexer.deleteIndexIfExists();
+                            //indexer.createIndex();
+                            try {
+                                indexConf.read(configFile);
+                                String indexName = indexConf.getIndexName();
+                                for (String sitemapUrl : indexConf.getSitemapUrls()) {
+                                    logger.info(sitemapUrl);
+                                    Sitemap sitemap = new Sitemap();
+                                    sitemap.parse(sitemapUrl);
+                                    for (String docUrl : sitemap.getDocumentUrls()) {
+                                        sleep(1000); 
+                                        logger.info(docUrl);
+                                        indexer.index(docUrl, indexName);
+                                    }
+                                }
+                            } catch (IOException e) {
+                                logger.error(String.format("Can not read %s : %s",
+                                                           configFile, e.getMessage()),
+                                             e);
+                            }
+                       });
+
+    }
+
+
+    /**  Change the url: setting in docusaurus.config.js to the value given in the options.
+     *
+     */
+    public void sauUrlCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("url")
+                        .option("u")
+                        .longOpt("url")
+                        .hasArg(true)
+                        .argName("url")
+                        .desc("Change the URL of the Docusaurus site.")
+                        .required(true)
+                        .build());
+
+
+        this.cmds.addCommand("sau:url", opts,
+                       "Change the URL of the Docusaurus site.",
+                       (CommandLine cl)-> {
+                                 logger.info("docusaurus:url");
+                            String url = cl.getOptionValue("url");
+
+                            DocusaurusConfigUpdator.update(url);
+                       });
+
+    }
+
     
 
 

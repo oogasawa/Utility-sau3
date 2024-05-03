@@ -3,7 +3,6 @@ package com.github.oogasawa.utility.sau3;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.StringJoiner;
 
 import com.github.oogasawa.utility.process.ProcessFacade;
 import com.github.oogasawa.utility.process.ProcessFacade.StdioMode;
