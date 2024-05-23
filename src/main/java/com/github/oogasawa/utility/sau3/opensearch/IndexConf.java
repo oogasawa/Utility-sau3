@@ -8,6 +8,34 @@ import java.util.List;
 
 
 
+/** This class reads the configuration file and sets its value to the field of this class.
+ *
+ * An example of a configuration file to be read is as follows
+ * 
+ * <pre>{@code
+ * [index]
+ * docusaurus_ja
+ * 
+ * [sitemap urls]
+ * https://sc.ddbj.nig.ac.jp/sitemap.xml
+ * http://localhost/~oogasawa/doc_Analyst001/sitemap.xml
+ * http://localhost/~oogasawa/doc_CPP001/sitemap.xml
+ * http://localhost/~oogasawa/doc_DBMS001/sitemap.xml
+ * http://localhost/~oogasawa/doc_Infra001/sitemap.xml
+ * http://localhost/~oogasawa/doc_Java001/sitemap.xml
+ * http://localhost/~oogasawa/doc_SCI001/sitemap.xml
+ * http://localhost/~oogasawa/doc_SCI002/sitemap.xml
+ * http://localhost/~oogasawa/doc_SCI003/sitemap.xml
+ * http://localhost/~oogasawa/doc_TypeScript001/sitemap.xml
+ * http://localhost/~oogasawa/sau_Bioinfo01/sitemap.xml
+ * http://localhost/~oogasawa/sau_English01/sitemap.xml
+ * http://localhost/~oogasawa/sau_Utility/sitemap.xml
+ * http://localhost/~oogasawa/sau_WebBLAST001/sitemap.xml
+ * }</pre>
+ *
+ *
+*/
+
 public class IndexConf {
 
 

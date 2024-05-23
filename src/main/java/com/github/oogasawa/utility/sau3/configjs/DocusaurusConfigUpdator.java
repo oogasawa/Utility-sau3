@@ -13,7 +13,19 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+/**
+ * This class adjusts docusaurus.config.js in the batch process depending on where the docusaurus site is deployed.
+ *
+ * <p>
+ * For example, if you deploy {@code nigsc_homepage2} for publication at {@code https://sc.ddbj.nig.ac.jp},
+ * the {@code url:} must be {@code 'https://sc.ddbj.nig.ac.jp/'}
+ * and the {@code baseUrl:} must be {@code '/'},
+ * whereas if you deploy to {@code public_html} on your local machine 
+ * you need to rewrite {@code url:} {@code'http://192.168.0.10/'} and {@code {baseUrl:} {@code '/~oogasawa/nigsc_homepage2/'}
+ *
+ * This class is for this process.
+ * </p>
+ */
 public class DocusaurusConfigUpdator {
 
     private static final Logger logger = LoggerFactory.getLogger(DocusaurusConfigUpdator.class);

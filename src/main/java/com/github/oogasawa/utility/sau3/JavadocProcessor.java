@@ -64,10 +64,14 @@ public class JavadocProcessor {
      */
     public void buildAndDeploy(Path srcdir, Path destDir)  {
 
-        this.build(srcdir);
-        
+        this.build(srcdir);        
         this.deploy(srcdir.resolve("target/site/apidocs"), destDir);
 
+        this.buildTestJavadoc(srcdir);
+        // Directory for the test javadoc documents.
+        Path destDir2 = destDir.resolveSibling(destDir.getFileName() + "-test");
+        this.deploy(srcdir.resolve("target/site/testapidocs"), destDir2);
+        
     }
 
 
@@ -90,6 +94,32 @@ public class JavadocProcessor {
             result = pf.exec("./mvnw", "javadoc:javadoc");
         } else {
             result = pf.exec("mvn", "javadoc:javadoc");
+        }
+
+        return result;
+    }
+
+
+    
+    /** Generate test javadoc documents. 
+     * (This method executes `mvn javadoc:test-javadoc` command.)
+     * 
+     * @param srcdir A java project directory.(e.g. {@code $HOME/works/your_project})
+     * @return A result of the build process.
+     */
+    public StdioData buildTestJavadoc(Path srcdir) {
+
+        ProcessFacade pf = new ProcessFacade()
+            .directory(srcdir)
+            .stdioMode(StdioMode.INHERIT)
+            .environment("LANG", "en_US.UTF-8");
+        
+
+        StdioData result = null;
+        if (Files.exists(srcdir.resolve("mvnw"))) {
+            result = pf.exec("./mvnw", "javadoc:test-javadoc");
+        } else {
+            result = pf.exec("mvn", "javadoc:test-javadoc");
         }
 
         return result;
