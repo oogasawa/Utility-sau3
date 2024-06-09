@@ -26,7 +26,7 @@ public class DocusaurusProcessor {
     // ========================================================================
     // Fields and Constructors
     // ========================================================================
-    
+   
     
     private static final Logger logger = LoggerFactory.getLogger(DocusaurusProcessor.class);
 
@@ -92,7 +92,7 @@ public class DocusaurusProcessor {
             .environment("LANG", "en_US.UTF-8");
         
         
-        pf.exec("npx", "browserslist@latest", "--update-db");
+        pf.exec("npx", "update-browserslist-db@latest");
         pf.exec("yarn", "run", "build");
 
     }
