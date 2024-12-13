@@ -2,14 +2,14 @@ package com.github.oogasawa.utility.sau3.opensearch;
 
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.StreamReadConstraints;
-
 import org.apache.http.HttpHost;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -35,6 +35,7 @@ public class Indexer {
     String text = null;
     String title = null;
     String url = null;
+    String lastmod = null;
 
     
     public void createIndex(String indexName) {
@@ -174,15 +175,19 @@ public class Indexer {
                 RestClient.builder(new HttpHost("localhost", 9200, "http")));
 
         Map<String, Object> jsonMap = new HashMap<>();
-        jsonMap.put("title", title);
-        jsonMap.put("text", text);
-        jsonMap.put("url", url);
+        // jsonMap.put("_id", calculateMD5(url));
+        jsonMap.put("title", this.title);
+        jsonMap.put("text", this.text);
+        jsonMap.put("url", this.url);
 
+        
         ObjectMapper mapper = new ObjectMapper();
         String jsonString = mapper.writeValueAsString(jsonMap);
 
         try {
-            client.index(new org.opensearch.action.index.IndexRequest(indexName).source(jsonString, XContentType.JSON),
+            client.index(new org.opensearch.action.index.IndexRequest(indexName)
+                         .source(jsonString, XContentType.JSON)
+                         .id(calculateMD5(url)),
                     RequestOptions.DEFAULT);
         } catch (IOException e) {
             logger.error("IOError at indexing: " + jsonString, e);
@@ -192,6 +197,29 @@ public class Indexer {
             } catch (IOException e) {
                 logger.error("Failed to close the client.", e);
             }
+        }
+    }
+
+
+
+    // Method to calculate the MD5 hash
+    public static String calculateMD5(String input) {
+        try {
+            // Get the MessageDigest instance for MD5
+            MessageDigest md = MessageDigest.getInstance("MD5");
+
+            // Convert input string to byte array and compute the hash
+            byte[] hashBytes = md.digest(input.getBytes());
+
+            // Convert the byte array to a hexadecimal string
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));  // Convert byte to hexadecimal format
+            }
+            return sb.toString();  // Return the hash (hexadecimal string)
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("MD5 algorithm not found", e);
         }
     }
 

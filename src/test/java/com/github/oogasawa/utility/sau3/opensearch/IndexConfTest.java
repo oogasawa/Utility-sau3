@@ -7,6 +7,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 
 
@@ -71,19 +73,37 @@ public class IndexConfTest {
             Sitemap sitemap = new Sitemap();
             sitemap.parse("https://sc.ddbj.nig.ac.jp/sitemap.xml");
         
-            List<String> docUrls = sitemap.getDocumentUrls();
+            Deque<SitemapEntry> entries = sitemap.getSitemapEntries();
 
             String[] answer = {
                 "https://sc.ddbj.nig.ac.jp/blog",
             };
 
             for (int i=0; i<answer.length; i++) {
-                assertTrue(docUrls.contains(answer[i]));
+                assertTrue(hasEntry(entries, answer[i]));
                 logger.info(answer[i]);
             }
 
         }
 
+        public boolean hasEntry(Deque<SitemapEntry> list, String url) {
+            logger.debug("hasEntry method in IntexConfTest class");
+            logger.debug(String.format("list.size() = %d", list.size()));
+            boolean result = false;
+            Iterator<SitemapEntry> iter = list.iterator();
+
+            while (iter.hasNext()) { 
+                SitemapEntry entry = iter.next();
+                logger.debug(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
+                if (entry.getUrl().equals(url)) {
+                    result = true;
+                    break;
+                }
+            }
+
+            return result;
+        }
+        
 
         
 

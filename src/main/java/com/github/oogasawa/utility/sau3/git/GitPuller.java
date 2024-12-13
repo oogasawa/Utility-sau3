@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+
 public class GitPuller {
 
      private static final Logger logger = LoggerFactory.getLogger(GitPuller.class);
@@ -20,7 +21,6 @@ public class GitPuller {
 
     public void pullAll(Path baseDir) {
         try {
-
             Files.list(baseDir).sorted().filter((Path p) -> {
                 return p.toFile().isDirectory();
             }).forEach((Path p) -> {

@@ -19,7 +19,7 @@
 
      <!-- Customizing log levels for specific packages -->
     <logger name="com.github.oogasawa.utility.sau3" level="INFO"/> 
-    <logger name="com.github.oogasawa.utility.sau3.opensearch" level="WARN"/>
+    <logger name="com.github.oogasawa.utility.sau3.opensearch" level="INFO"/>
 
 
 </configuration>

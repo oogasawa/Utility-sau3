@@ -5,6 +5,7 @@ import java.nio.file.Path;
 
 import com.github.oogasawa.utility.cli.CliCommands;
 import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
+import com.github.oogasawa.utility.sau3.git.GitAutomation;
 import com.github.oogasawa.utility.sau3.git.GitPuller;
 import com.github.oogasawa.utility.sau3.git.GitStatusChecker;
 import com.github.oogasawa.utility.sau3.markdown.MdGenerator;
@@ -12,6 +13,8 @@ import com.github.oogasawa.utility.sau3.markdown.MdRenamer;
 import com.github.oogasawa.utility.sau3.opensearch.IndexConf;
 import com.github.oogasawa.utility.sau3.opensearch.Indexer;
 import com.github.oogasawa.utility.sau3.opensearch.Sitemap;
+import com.github.oogasawa.utility.sau3.opensearch.SitemapEntry;
+import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -76,20 +79,24 @@ public class App
     public void setupCommands() {
 
         gitpullCommand();
+        gitPushAllCommand();
         gitStatusCommand();
+        
         javadocBuildAllCommand();
         javadocDeployCommand();
+
         mdGenerateCommand();
         mdRenameCommand();
 
         sauBuildAllCommand();
         sauDeployCommand();
         sauIndexCommand();
+        sauUpdateIndexCommand();
         sauUrlCommand();
 
-        
     }
 
+    
     public void sleep(int msec) {
         try {
             Thread.sleep(msec);
@@ -98,6 +105,34 @@ public class App
         }
     }
 
+
+
+
+    /**  Execute git status command on each subdirectory.
+     *
+     */
+    public void gitPushAllCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("list")
+                        .option("l")
+                        .longOpt("list")
+                        .hasArg(true)
+                        .argName("list")
+                        .desc("A file containing the list of target directories.")
+                        .required(false)
+                        .build());
+
+
+        this.cmds.addCommand("git:pushAll", opts,
+                       "Execute git push command on each subdirectory.",
+                (CommandLine cl) -> {
+
+                    String dirList = cl.getOptionValue("list");
+                    GitAutomation.pushAll(Path.of(dirList));
+                });
+
+    }
 
 
     
@@ -112,6 +147,7 @@ public class App
                         .option("d")
                         .longOpt("dir")
                         .hasArg(true)
+                       
                         .argName("dir")
                         .desc("Target base directory.")
                         .required(false)
@@ -129,7 +165,6 @@ public class App
 
                                  git.pullAll(Path.of(dir));
                        });
-
     }
 
 
@@ -167,6 +202,10 @@ public class App
                 });
 
     }
+
+
+    
+
 
 
     
@@ -507,10 +546,10 @@ public class App
                                     logger.info(sitemapUrl);
                                     Sitemap sitemap = new Sitemap();
                                     sitemap.parse(sitemapUrl);
-                                    for (String docUrl : sitemap.getDocumentUrls()) {
-                                        sleep(1000); 
-                                        logger.info(docUrl);
-                                        indexer.index(docUrl, indexName);
+                                    for (SitemapEntry entry : sitemap.getSitemapEntries()) {
+                                        sleep(1000);
+                                        logger.info(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
+                                        indexer.index(entry.getUrl(), indexName);
                                     }
                                 }
                             } catch (IOException e) {
@@ -522,6 +561,63 @@ public class App
 
     }
 
+
+
+    
+    /**  docusaurus:update_index  */
+    public void sauUpdateIndexCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("conf")
+                        .option("c")
+                        .longOpt("conf")
+                        .hasArg(true)
+                        .argName("conf")
+                        .desc("Configuration file.")
+                        .required(true)
+                        .build());
+
+
+        this.cmds.addCommand("sau:updateIndex", opts,
+                       "Update a full text index of multiple Docusaurus sites.",
+                       (CommandLine cl)-> {
+                            logger.info("docusaurus:updateIndex");
+                            String configFile = cl.getOptionValue("conf");
+                            
+                            IndexConf indexConf = new IndexConf();
+                            Indexer indexer = new Indexer();
+                            //indexer.deleteIndexIfExists();
+                            //indexer.createIndex();
+                            try {
+                                indexConf.read(configFile);
+                                String indexName = indexConf.getIndexName();
+                                for (String sitemapUrl : indexConf.getSitemapUrls()) {
+                                    logger.info(sitemapUrl);
+                                    Sitemap sitemap = new Sitemap();
+                                    sitemap.parse(sitemapUrl);
+                                    for (SitemapEntry entry : sitemap.getSitemapEntries()) {
+                                        if (entry.getLastmod() == null) {
+                                            continue;
+                                        }
+                                        else if(DateChecker.isWithinLastNDays(entry.getLastmod(), 3)) {
+                                            sleep(1000);
+                                            logger.info(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
+                                            indexer.index(entry.getUrl(), indexName);
+                                        }
+                                    }
+                                }
+                            } catch (IOException e) {
+                                logger.error(String.format("Can not read %s : %s",
+                                                           configFile, e.getMessage()),
+                                             e);
+                            }
+                       });
+
+    }
+
+
+
+    
 
     /**  Change the url: setting in docusaurus.config.js to the value given in the options.
      *
