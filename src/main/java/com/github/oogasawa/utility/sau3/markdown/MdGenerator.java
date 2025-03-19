@@ -48,38 +48,47 @@ public class MdGenerator {
     }
 
 
-    
+    /**
+     * Generates a markdown file inside a directory named after the given document ID.
+     * <p>
+     * If the directory does not exist, it will be created. If the markdown file already exists,
+     * this method does nothing.
+     * </p>
+     *
+     * @param docId The unique identifier for the document. This will be used as the directory
+     *              and file name.
+     */
     public void generate(String docId) {
-
-        String outfile = docId + ".md";
+        Path currentDir = Path.of(System.getenv("PWD"));
+        Path docDir = currentDir.resolve(docId);
+        Path mdFilePath = docDir.resolve(docId + ".md");
 
         try {
-            // 1, make a document directory
-            Path currentDir = Path.of(System.getenv("PWD"));
-            Process p = new ProcessBuilder("mkdir", docId).directory(currentDir.toFile()).start();
-            p.waitFor();
+            // Create the directory if it does not exist
+            if (!Files.exists(docDir)) {
+                Files.createDirectories(docDir);
+            }
 
-            // 2, generate the markdown file.
+            // If the file already exists, do nothing
+            if (Files.exists(mdFilePath)) {
+                logger.info("File already exists: " + mdFilePath);
+                return;
+            }
 
-            List<String> lines = new ArrayList<String>();
+            // Create and write to the markdown file
+            List<String> lines = new ArrayList<>();
             lines.add("---");
             lines.add("id: " + UnnumberedDocId(docId));
             lines.add("---");
 
-            Path mdFilePath = currentDir.resolve(docId).resolve(docId + ".md");
             Files.write(mdFilePath, lines);
-        }
-        catch (IOException e) {
-            logger.error("Can not create a file " + docId + ".md", e);
-        }
-        catch (InterruptedException e) {
-            logger.warn("Interrupted", e);
+            logger.info("File created: " + mdFilePath);
+        } catch (IOException e) {
+            logger.error("Can not create a file " + mdFilePath, e);
         }
     }
-
-
-
-
+    
+    
 
 
 }
