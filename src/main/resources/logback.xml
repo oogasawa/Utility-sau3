@@ -1,6 +1,41 @@
 <configuration>
-    <root level="WARN">
-        <appender-ref ref="STDOUT"/>
-    </root>
-</configuration>
+    <!-- Synchronous logging to stdout for normal logs -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.out</target>
+        <encoder>
+            <pattern>%date %level [%thread] %logger{10} [%file:%line] %msg%n</pattern>
+        </encoder>
+    </appender>
 
+    <!-- Synchronous logging to stderr for error logs -->
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%date %level [%thread] %logger{10} [%file:%line] %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Asynchronous logging to stdout for normal logs (INFO and below) -->
+    <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>5000</queueSize>
+        <discardingThreshold>0</discardingThreshold> <!-- Prevent discarding logs -->
+        <appender-ref ref="STDOUT" />
+    </appender>
+
+    <!-- Asynchronous logging to stderr for error logs (WARN and ERROR) -->
+    <appender name="ASYNC_STDERR" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>5000</queueSize>
+        <discardingThreshold>0</discardingThreshold> <!-- Prevent discarding logs -->
+        <appender-ref ref="STDERR" />
+    </appender>
+
+    <!-- Root logger for normal logs (INFO and below) -->
+    <root level="WARN">
+        <appender-ref ref="ASYNC_STDOUT" />
+    </root>
+
+    <!-- Logger for error logs (WARN and ERROR) -->
+    <logger name="com.github.oogasawa.utility.sau3" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_STDERR" />
+    </logger>
+</configuration>
