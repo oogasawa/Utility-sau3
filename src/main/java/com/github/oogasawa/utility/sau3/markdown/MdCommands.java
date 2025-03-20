@@ -51,7 +51,7 @@ public class MdCommands {
                         .build());
 
         
-        this.cmdRepos.addCommand("md:generate", opts,
+        this.cmdRepos.addCommand("markdown commands", "md:generate", opts,
                 "Generate a docusaurus document template.",
                 (CommandLine cl) -> {
 
@@ -142,7 +142,7 @@ public class MdCommands {
                         .build());
 
         
-        this.cmdRepos.addCommand("md:rename", opts,
+        this.cmdRepos.addCommand("markdown commands", "md:rename", opts,
                 "Rename a docusaurus document.",
                 (CommandLine cl) -> {
 

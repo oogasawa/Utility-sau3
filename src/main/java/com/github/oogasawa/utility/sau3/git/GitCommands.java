@@ -15,7 +15,8 @@ public class GitCommands {
     
 
     public void setupCommands(CommandRepository cmds) {
-
+        this.cmdRepos = cmds;
+        
         gitpullCommand();
         gitPushAllCommand();
         gitStatusCommand();
@@ -39,7 +40,7 @@ public class GitCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("git:pushAll", opts,
+        this.cmdRepos.addCommand("git commands", "git:pushAll", opts,
                        "Execute git push command on each subdirectory.",
                 (CommandLine cl) -> {
 
@@ -69,7 +70,7 @@ public class GitCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("git:pull", opts,
+        this.cmdRepos.addCommand("git commands", "git:pull", opts,
                        "Execute git pull on each subdirectory.",
                        (CommandLine cl)-> {
                                  GitPuller git = new GitPuller();
@@ -102,7 +103,7 @@ public class GitCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("git:status", opts,
+        this.cmdRepos.addCommand("git commands", "git:status", opts,
                        "Execute git status command on each subdirectory.",
                 (CommandLine cl) -> {
 
