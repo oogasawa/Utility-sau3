@@ -1,21 +1,10 @@
 package com.github.oogasawa.utility.sau3;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import com.github.oogasawa.utility.cli.CommandRepository;
-import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
 import com.github.oogasawa.utility.sau3.git.GitCommands;
 import com.github.oogasawa.utility.sau3.markdown.MdCommands;
-import com.github.oogasawa.utility.sau3.markdown.MdGenerator;
-import com.github.oogasawa.utility.sau3.markdown.MdRenamer;
-import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
-import com.github.oogasawa.utility.sau3.opensearch.IndexConf;
-import com.github.oogasawa.utility.sau3.opensearch.Indexer;
-import com.github.oogasawa.utility.sau3.opensearch.Sitemap;
-import com.github.oogasawa.utility.sau3.opensearch.SitemapEntry;
+import com.github.oogasawa.utility.sau3.sautest.SauTestCommands;
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +78,10 @@ public class App
         SauCommands sauCommands = new SauCommands();
         sauCommands.setupCommands(this.cmdRepos);
 
+        SauTestCommands sauTestCommands = new SauTestCommands();
+        sauTestCommands.setupCommands(this.cmdRepos);
+
+        
     }
 
 }

@@ -35,112 +35,28 @@ public class SauCommands {
     public void setupCommands(CommandRepository cmds) {
         this.cmdRepos = cmds;
 
-        sauBuildAllCommand();
         sauDeployCommand();
         sauIndexCommand();
+        sauStartCommand();
         sauUpdateIndexCommand();
         sauUrlCommand();
     }
 
 
     
-    
-    /** Build docusaurus documents on all subdirectories.
-    */
-    public void sauBuildAllCommand() {
-        Options opts = new Options();
 
-        opts.addOption(Option.builder("srcBaseDir")
-                        .option("s")
-                        .longOpt("srcBaseDir")
-                        .hasArg(true)
-                        // .argName("file")
-                        .desc("Source base directory. (e.g., $HOME/works)")
-                        .required(true)
-                        .build());
-
-        
-        opts.addOption(Option.builder("targetBaseDir")
-                        .option("t")
-                        .longOpt("targetBaseDir")
-                        .hasArg(true)
-                        // .argName("file")
-                        .desc("Target base directory. (e.g. $HOME/public_html)")
-                        .required(false)
-                        .build());
-
-        
-        opts.addOption(Option.builder("url")
-                        .option("u")
-                        .longOpt("url")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("Change the URL of the Docusaurus site.")
-                        .required(false)
-                        .build());
-
-        
-        this.cmdRepos.addCommand("sau:buildAll", opts,
-                "Build docusaurus documents on all subdirectories.",
-                             
-                (CommandLine cl) -> {
-
-                    DocusaurusProcessor builder = new DocusaurusProcessor();
-                    String srcBasedir = cl.getOptionValue("srcBaseDir", System.getenv("HOME") + "/works");
-                    String targetBasedir = cl.getOptionValue("targetBaseDir", System.getenv("HOME") + "/public_html");
-                    //String url = cl.getOptionValue("url");
-
-                    builder.buildAll(Path.of(srcBasedir), Path.of(targetBasedir));
-                });
-
-    }    
-
-
-
-
-    /** Build docusaurus documents on all subdirectories.
-    */
     public void sauDeployCommand() {
         Options opts = new Options();
 
-        opts.addOption(Option.builder("srcdir")
-                        .option("s")
-                        .longOpt("srcdir")
-                        .hasArg(true)
-                        .argName("srcdir")
-                        .desc("docusaurus directory. (default: current directory)")
-                        .required(false)
-                        .build());
-
-        opts.addOption(Option.builder("targetdir")
-                        .option("t")
-                        .longOpt("targetdir")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("target directory. (default: $HOME/public_html)")
-                        .required(false)
-                        .build());
-
         
-        this.cmdRepos.addCommand("sau:deploy", opts,
-                "Build docusaurus documents and deploy them on the target directory.",
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:deploy", opts,
+                "Build the Docusaurus project with filtered output and deploy it to the public_html directory.",
                              
                 (CommandLine cl) -> {
-
-
-                    String srcdir = cl.getOptionValue("srcdir", System.getenv("PWD"));
-                    Path srcPath = Path.of(srcdir);
-                    Path docName = srcPath.getFileName();
-                    String destdir = cl.getOptionValue("targetdir",
-                                                         System.getenv("HOME") + "/public_html/" + docName.toString());
-
-                    DocusaurusProcessor builder = new DocusaurusProcessor();
-                    builder.buildAndDeploy(Path.of(srcdir), Path.of(destdir));
+                    DocusaurusProcessor.deploy();
                 });
 
     }    
-
-
 
     
     
@@ -158,7 +74,7 @@ public class SauCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("sau:index", opts,
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:index", opts,
                        "Making a full text index of multiple Docusaurus sites.",
                        (CommandLine cl)-> {
                                  logger.info("docusaurus:index");
@@ -190,6 +106,18 @@ public class SauCommands {
 
     }
 
+    
+
+    public void sauStartCommand() {
+        Options opts = new Options();
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:start", opts,
+                "Start the Docusaurus development server with filtered output and automatic port conflict handling.",                             
+                (CommandLine cl) -> {
+                    DocusaurusProcessor.startDocusaurus();
+                });
+
+    }    
 
 
     
@@ -207,7 +135,7 @@ public class SauCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("sau:updateIndex", opts,
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:updateIndex", opts,
                        "Update a full text index of multiple Docusaurus sites.",
                        (CommandLine cl)-> {
                             logger.info("docusaurus:updateIndex");
@@ -265,7 +193,7 @@ public class SauCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("sau:url", opts,
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:url", opts,
                        "Change the URL of the Docusaurus site.",
                        (CommandLine cl)-> {
                                  logger.info("docusaurus:url");
