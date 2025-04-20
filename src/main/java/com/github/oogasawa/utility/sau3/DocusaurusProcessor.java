@@ -1,8 +1,8 @@
 package com.github.oogasawa.utility.sau3;
 
-import java.io.File;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -12,11 +12,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.github.oogasawa.utility.process.ProcessFacade;
-import com.github.oogasawa.utility.process.ProcessFacade.StdioMode;
-import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,23 +85,83 @@ public class DocusaurusProcessor {
      */
     public static void main(String[] args) {
         // Example usage
-        deploy();            // Build and deploy to public_html
+        deploy(null);            // Build and deploy to public_html
         startDocusaurus();   // Optionally run dev server
     }
 
 
+    
+
     /**
-     * Build the current Docusaurus project and deploy its output to 
-     * {@code ~/public_html/{projectName}}.
+     * Builds the current Docusaurus project while filtering the console output
+     * to suppress unnecessary build messages.
      *
      * <p>This method assumes it is executed from the project root directory.</p>
+     * 
+     * <p>
+     * This method is intended to reduce verbosity during the build process by capturing and
+     * filtering output from underlying build tools. Only essential progress messages (e.g., project
+     * name, destination paths, and errors) are displayed.
+     * </p>
      */
-    public static void deploy() {
+    public static void build() {
         try {
             Path projectDir = Paths.get("").toAbsolutePath();
             String projectName = projectDir.getFileName().toString();
-            Path destDir = Paths.get(System.getProperty("user.home"), "public_html", projectName);
 
+            
+            System.out.println("Building project: " + projectName);
+            runCommand(new String[]{"npx", "browserslist@latest", "--update-db"});
+            runCommandAndFilterOutput(new String[]{"yarn", "run", "build"});
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+    /**
+     * Builds the current Docusaurus project and deploys the generated output to a target directory,
+     * while filtering the console output to suppress unnecessary build messages.
+     *
+     * <p>
+     * This method is intended to reduce verbosity during the build process by capturing and
+     * filtering output from underlying build tools. Only essential progress messages (e.g., project
+     * name, destination paths, and errors) are displayed.
+     * </p>
+     *
+     * <p>
+     * It performs the following steps:
+     * </p>
+     * <ul>
+     * <li>Determines the current project name from the working directory.</li>
+     * <li>If {@code dest} is {@code null}, uses {@code ~/public_html/{projectName}} as the
+     * deployment path.</li>
+     * <li>Executes {@code npx browserslist@latest --update-db} to update browser data.</li>
+     * <li>Runs the Docusaurus build process using {@code yarn run build}, with filtered
+     * output.</li>
+     * <li>Removes any existing deployment directory at the destination.</li>
+     * <li>Copies the contents of the {@code build} directory to the target deployment path.</li>
+     * </ul>
+     *
+     * @param dest the parent directory where the built site should be deployed; if {@code null},
+     *        defaults to {@code ~/public_html/{projectName}}.
+     * @see #runCommandAndFilterOutput(String[]) for output filtering behavior
+     */
+    public static void deploy(String dest) {
+        try {
+            Path projectDir = Paths.get("").toAbsolutePath();
+            String projectName = projectDir.getFileName().toString();
+
+            Path destDir = null;
+            if (dest == null) {
+                destDir = Paths.get(System.getProperty("user.home"), "public_html", projectName);
+            }
+            else {
+                destDir = Paths.get(dest, projectName);
+            }
+            
             System.out.println("Building project: " + projectName);
             runCommand(new String[]{"npx", "browserslist@latest", "--update-db"});
             runCommandAndFilterOutput(new String[]{"yarn", "run", "build"});
@@ -131,6 +186,9 @@ public class DocusaurusProcessor {
         }
     }
 
+
+
+    
     
     /**
      * Start the Docusaurus development server in the current directory.
@@ -268,47 +326,47 @@ public class DocusaurusProcessor {
         });
     }    
 
-    // ========================================================================
-    // High level APIs
-    // ========================================================================
+    // // ========================================================================
+    // // High level APIs
+    // // ========================================================================
     
-    /**
-     * Build all Docusaurus projects located directly under the specified base directory.
-     *
-     * <p>Directories with names starting with {@code "doc_"} or {@code "sau_"} are considered
-     * valid Docusaurus projects.</p>
-     *
-     * @param srcBaseDir The root directory containing multiple Docusaurus projects.
-     * @param destBaseDir The base directory to which each project's output will be deployed.
-     */
-    public void buildAll(Path srcBaseDir, Path destBaseDir) {
-        try {
+    // /**
+    //  * Build all Docusaurus projects located directly under the specified base directory.
+    //  *
+    //  * <p>Directories with names starting with {@code "doc_"} or {@code "sau_"} are considered
+    //  * valid Docusaurus projects.</p>
+    //  *
+    //  * @param srcBaseDir The root directory containing multiple Docusaurus projects.
+    //  * @param destBaseDir The base directory to which each project's output will be deployed.
+    //  */
+    // public void buildAll(Path srcBaseDir, Path destBaseDir) {
+    //     try {
             
-            Files.list(srcBaseDir)
-                .sorted()
-                .filter((Path sauDir)->{return sauDir.toFile().isDirectory();})
-                .filter((Path sauDir)->{return sauDir.getFileName().toString().startsWith("doc_") || sauDir.getFileName().toString().startsWith("sau_");})
-                .forEach((Path sauDir)->{
-                        logger.info("Building docusaurus document: " + sauDir.toString());
-                    Path destDir = destBaseDir.resolve(sauDir.getFileName());
-                    buildAndDeploy(sauDir, destDir);
-                    });
-        } catch (IOException e) {
-            logger.error("Failed to list directories under the base directory: " + srcBaseDir.toString(), e);
-        }
+    //         Files.list(srcBaseDir)
+    //             .sorted()
+    //             .filter((Path sauDir)->{return sauDir.toFile().isDirectory();})
+    //             .filter((Path sauDir)->{return sauDir.getFileName().toString().startsWith("doc_") || sauDir.getFileName().toString().startsWith("sau_");})
+    //             .forEach((Path sauDir)->{
+    //                     logger.info("Building docusaurus document: " + sauDir.toString());
+    //                 Path destDir = destBaseDir.resolve(sauDir.getFileName());
+    //                 buildAndDeploy(sauDir, destDir);
+    //                 });
+    //     } catch (IOException e) {
+    //         logger.error("Failed to list directories under the base directory: " + srcBaseDir.toString(), e);
+    //     }
     
-    }
+    // }
 
-    /**
-     * Build a single Docusaurus project and deploy its contents.
-     *
-     * @param sauDir The directory containing the source Docusaurus project.
-     * @param destDir The target directory for the deployment.
-     */
-    public void buildAndDeploy(Path sauDir, Path destDir)  {
-        build(sauDir, null);
-        deploy(sauDir, destDir);
-    }
+    // /**
+    //  * Build a single Docusaurus project and deploy its contents.
+    //  *
+    //  * @param sauDir The directory containing the source Docusaurus project.
+    //  * @param destDir The target directory for the deployment.
+    //  */
+    // public void buildAndDeploy(Path sauDir, Path destDir)  {
+    //     build(sauDir, null);
+    //     deploy(sauDir, destDir);
+    // }
     
 
 
@@ -317,76 +375,76 @@ public class DocusaurusProcessor {
     // ========================================================================
 
     
-    /**
-     * Build the Docusaurus project located at the given directory.
-     *
-     * <p>If a {@code url} is provided, it is injected into the config.js file before building.</p>
-     *
-     * @param sauDir The path to the Docusaurus project directory.
-     * @param url The optional base URL to update in the configuration.
-     */
-    void build(Path sauDir, String url) {
+    // /**
+    //  * Build the Docusaurus project located at the given directory.
+    //  *
+    //  * <p>If a {@code url} is provided, it is injected into the config.js file before building.</p>
+    //  *
+    //  * @param sauDir The path to the Docusaurus project directory.
+    //  * @param url The optional base URL to update in the configuration.
+    //  */
+    // void build(Path sauDir, String url) {
 
-        if (url != null) {
-            DocusaurusConfigUpdator.update(url, sauDir.toFile());
-        }
+    //     if (url != null) {
+    //         DocusaurusConfigUpdator.update(url, sauDir.toFile());
+    //     }
 
-        ProcessFacade pf = new ProcessFacade()
-            .directory(sauDir)
-            .stdioMode(StdioMode.INHERIT)
-            .environment("LANG", "en_US.UTF-8");
+    //     ProcessFacade pf = new ProcessFacade()
+    //         .directory(sauDir)
+    //         .stdioMode(StdioMode.INHERIT)
+    //         .environment("LANG", "en_US.UTF-8");
         
         
-        pf.exec("npx", "update-browserslist-db@latest");
-        pf.exec("yarn", "run", "build");
+    //     pf.exec("npx", "update-browserslist-db@latest");
+    //     pf.exec("yarn", "run", "build");
 
-    }
+    // }
 
     
-    /**
-     * Deploy a previously built Docusaurus site to the specified destination directory.
-     *
-     * <p>The method assumes a {@code build/} directory exists under the source directory.
-     * It deletes any existing deployment before copying files.</p>
-     *
-     * @param sauDir The Docusaurus project directory.
-     * @param destDir The destination deployment directory.
-     */
-    void deploy(Path sauDir, Path destDir) {
+    // /**
+    //  * Deploy a previously built Docusaurus site to the specified destination directory.
+    //  *
+    //  * <p>The method assumes a {@code build/} directory exists under the source directory.
+    //  * It deletes any existing deployment before copying files.</p>
+    //  *
+    //  * @param sauDir The Docusaurus project directory.
+    //  * @param destDir The destination deployment directory.
+    //  */
+    // void deploy(Path sauDir, Path destDir) {
 
-        // If the build directory in the sauDir does not exist, the deployment is skipped.
-        if (!Files.exists(sauDir.resolve("build"))) {
-            logger.error("Docusaurus directory does not exist. The deployment was skipped.");
-            return;
-        }
+    //     // If the build directory in the sauDir does not exist, the deployment is skipped.
+    //     if (!Files.exists(sauDir.resolve("build"))) {
+    //         logger.error("Docusaurus directory does not exist. The deployment was skipped.");
+    //         return;
+    //     }
         
 
-        // Ensure that the parent directory of destDir (e.g. $HOME/public_html) exists.
-        if (!Files.exists(destDir.getParent())) {
-            try {
-                Files.createDirectories(destDir.getParent());
-            } catch (IOException e) {
-                logger.error("Failed to create the destination directory: " + destDir.toString(), e);
-            }
-        }
+    //     // Ensure that the parent directory of destDir (e.g. $HOME/public_html) exists.
+    //     if (!Files.exists(destDir.getParent())) {
+    //         try {
+    //             Files.createDirectories(destDir.getParent());
+    //         } catch (IOException e) {
+    //             logger.error("Failed to create the destination directory: " + destDir.toString(), e);
+    //         }
+    //     }
 
 
 
-        ProcessFacade pf = new ProcessFacade()
-            .directory(sauDir)
-            .stdioMode(StdioMode.INHERIT)
-            .environment("LANG", "en_US.UTF-8");
+    //     ProcessFacade pf = new ProcessFacade()
+    //         .directory(sauDir)
+    //         .stdioMode(StdioMode.INHERIT)
+    //         .environment("LANG", "en_US.UTF-8");
 
         
-        // If the destination directory (e.g. $HOME/public_html/doc_SCI001) exists, delete it once.
-        if (Files.exists(destDir)) {
-            pf.exec("rm", "-rf", destDir.toAbsolutePath().toString());
-        }
+    //     // If the destination directory (e.g. $HOME/public_html/doc_SCI001) exists, delete it once.
+    //     if (Files.exists(destDir)) {
+    //         pf.exec("rm", "-rf", destDir.toAbsolutePath().toString());
+    //     }
 
-        // copy the build directory to the destination directory.
-        pf.exec("cp", "-rp", "build", destDir.toAbsolutePath().toString());
+    //     // copy the build directory to the destination directory.
+    //     pf.exec("cp", "-rp", "build", destDir.toAbsolutePath().toString());
 
-    }
+    // }
     
 
     

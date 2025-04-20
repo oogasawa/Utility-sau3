@@ -1,7 +1,6 @@
 package com.github.oogasawa.utility.sau3;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import com.github.oogasawa.utility.cli.CommandRepository;
 import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
 import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
@@ -12,7 +11,6 @@ import com.github.oogasawa.utility.sau3.opensearch.SitemapEntry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +33,7 @@ public class SauCommands {
     public void setupCommands(CommandRepository cmds) {
         this.cmdRepos = cmds;
 
+        sauBuildCommand();
         sauDeployCommand();
         sauIndexCommand();
         sauStartCommand();
@@ -45,15 +44,39 @@ public class SauCommands {
 
     
 
+    public void sauBuildCommand() {
+        Options opts = new Options();
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:build", opts,
+                "Build the Docusaurus project with filtered output.",
+                                 
+                (CommandLine cl) -> {
+                    DocusaurusProcessor.build();
+                });
+
+    }    
+
+    
+
     public void sauDeployCommand() {
         Options opts = new Options();
+
+        opts.addOption(Option.builder("dest")
+                       .option("d")
+                       .longOpt("dest")
+                       .hasArg(true)
+                       .argName("dest")
+                       .desc("Destination directory. (e.g. /var/www/html, $HOME/public_html; default is $HOME/public_html)")
+                       .required(false)
+                       .build());
 
         
         this.cmdRepos.addCommand("Docusaurus commands", "sau:deploy", opts,
                 "Build the Docusaurus project with filtered output and deploy it to the public_html directory.",
                              
                 (CommandLine cl) -> {
-                    DocusaurusProcessor.deploy();
+                    String dest = cl.getOptionValue("dest");
+                    DocusaurusProcessor.deploy(dest);
                 });
 
     }    
