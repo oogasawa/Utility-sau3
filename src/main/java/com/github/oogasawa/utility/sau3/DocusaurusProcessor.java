@@ -1,5 +1,10 @@
 package com.github.oogasawa.utility.sau3;
 
+
+import java.net.ServerSocket;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -10,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -185,64 +191,96 @@ public class DocusaurusProcessor {
             e.printStackTrace();
         }
     }
-
-
-
     
     
     /**
      * Start the Docusaurus development server in the current directory.
      * 
-     * <p>Automatically responds to port conflict prompts with 'Y'. Only important
-     * output is shown, such as errors, warnings, and successful launch URLs.</p>
+     * <p>
+     * Automatically responds to port conflict prompts with 'Y'. Only important output is shown,
+     * such as errors, warnings, and successful launch URLs.
+     * </p>
      */
     public static void startDocusaurus() {
+        int startPort = 3001;
+        int endPort = 3010;
+        int selectedPort = -1;
+
+        for (int port = startPort; port <= endPort; port++) {
+            try (ServerSocket socket = new ServerSocket(port)) {
+                selectedPort = port;
+                break; // 空いていたらそのポートを使う
+            } catch (IOException e) {
+                // このポートは使用中なのでスキップ
+            }
+
+        }
+
+        if (selectedPort == -1) {
+            System.err.println(
+                    "[ERROR] No available port found between " + startPort + " and " + endPort);
+            return;
+        }
+
+        System.out.println("Launching Docusaurus on available port: " + selectedPort);
+
         ProcessBuilder builder = new ProcessBuilder("yarn", "start", "--host", "0.0.0.0");
+        builder.environment().put("PORT", String.valueOf(selectedPort));
         builder.redirectErrorStream(true);
 
         try {
             Process process = builder.start();
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(process.getInputStream()));
+            Pattern urlPattern = Pattern.compile("http://localhost:(\\d+)");
+            AtomicReference<String> fullUrl = new AtomicReference<>(null);
+            AtomicReference<Boolean> startupFailed = new AtomicReference<>(false);
 
-            String line;
-            String fullUrl = null;
-            String port = null;
+            Thread outputReader = new Thread(() -> {
+                try {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String stripped = line.trim();
 
-            while ((line = reader.readLine()) != null) {
-                String stripped = line.trim();
+                        if (stripped.contains("Something is already running on port")) {
+                            startupFailed.set(true);
+                        }
 
-                if (stripped.matches("(?i).*Would you like to run the app on another port instead\\?.*")) {
-                    System.out.println("[Auto-response] Y");
-                    writer.write("Y\n");
-                    writer.flush();
+                        Matcher matcher = urlPattern.matcher(stripped);
+                        if (matcher.find()) {
+
+                            fullUrl.set(matcher.group(0));
+                        }
+
+                        if (shouldDisplayLine(stripped)) {
+                            System.out.println(stripped);
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
+            });
 
-                Matcher matcher = PORT_PATTERN.matcher(stripped);
-                if (matcher.find()) {
-                    port = matcher.group(1);
-                    fullUrl = matcher.group(0);
-                }
-
-                if (shouldDisplayLine(stripped)) {
-                    System.out.println(stripped);
-                }
-            }
-
+            outputReader.start();
             process.waitFor();
+            outputReader.join();
 
-            if (fullUrl != null) {
-                System.out.println("\nDocusaurus is running at: " + fullUrl);
-            } else if (port != null) {
-                System.out.println("\nDocusaurus is running on port " + port);
+            if (startupFailed.get()) {
+                System.out.println(
+                        "\n[ERROR] Docusaurus failed to start because the port was already in use.");
+            } else if (fullUrl.get() != null) {
+                System.out.println("\nDocusaurus is running at: " + fullUrl.get());
             } else {
-                System.out.println("\nCould not determine the running port.");
+                System.out.println("\nDocusaurus was started on port " + selectedPort
+                        + ", but URL was not printed.");
             }
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
+
+
 
     /**
      * Determine whether a given line should be printed, based on keyword matching.
