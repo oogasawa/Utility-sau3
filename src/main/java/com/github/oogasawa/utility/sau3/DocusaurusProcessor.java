@@ -1,16 +1,11 @@
 package com.github.oogasawa.utility.sau3;
 
 
-import java.net.ServerSocket;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -192,7 +187,6 @@ public class DocusaurusProcessor {
         }
     }
     
-    
     /**
      * Start the Docusaurus development server in the current directory.
      * 
@@ -318,8 +312,27 @@ public class DocusaurusProcessor {
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         String line;
+        boolean insideImportantBlock = false;
+
         while ((line = reader.readLine()) != null) {
-            if (shouldDisplayLine(line)) {
+            // Detect start or end of a block with many dashes or centered title
+            if (line.matches("^-{60,}") || line.trim().matches(".*Update available.*")) {
+                insideImportantBlock = true;
+                System.out.println(line);
+                continue;
+            }
+
+            else if (insideImportantBlock) {
+                System.out.println(line);
+                // End condition: when consecutive empty lines appear or the output transitions to a different section
+                if (line.matches("^-{60,}")) {
+                    insideImportantBlock = false;
+                }
+                continue;
+            }
+
+            // fallback: match by keywords
+            else if (shouldDisplayLine(line)) {
                 System.out.println(line);
             }
         }
@@ -330,6 +343,8 @@ public class DocusaurusProcessor {
             e.printStackTrace();
         }
     }
+
+    
 
     /**
      * Recursively delete a directory and all of its contents.
