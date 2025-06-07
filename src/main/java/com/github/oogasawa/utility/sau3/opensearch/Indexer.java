@@ -11,6 +11,7 @@ import java.util.StringJoiner;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpHost;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -136,33 +137,44 @@ public class Indexer {
 
     }
 
-        
 
-    
-    public void fetchHtml(String url)  {
 
-        Document doc;
+    public void fetchHtml(String url) {
+
         try {
-            doc = Jsoup.connect(url).get();
+            Connection.Response response = Jsoup.connect(url).userAgent(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                    .referrer("https://www.google.com/")
+                    .header("Accept",
+                            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .header("Accept-Language", "ja,en-US;q=0.9,en;q=0.8").timeout(10000)
+                    .followRedirects(true).method(Connection.Method.GET).execute();
 
-            // Select an element with a class name.
-            Element div = doc.select("div.docItemCol_VOVn").first();
-        
-            // When the element is found, get the text.
-            if (div != null) {
-                this.text = div.text();
-            } else { // Extracts text from the body
-                this.text = doc.body().text(); 
+            int statusCode = response.statusCode();
+            if (statusCode != 200) {
+                logger.error("Failed to fetch the document from the URL: " + url
+                        + " - Status code: " + statusCode);
+                return;
             }
 
-            this.title = doc.title(); // Extracts the title of the HTML document
+            Document doc = response.parse();
+
+            Element div = doc.select("div.docItemCol_VOVn").first();
+            if (div != null) {
+                this.text = div.text();
+            } else {
+                this.text = doc.body().text();
+            }
+
+            this.title = doc.title();
             this.url = url;
 
+        } catch (org.jsoup.HttpStatusException e) {
+            logger.error("HTTP error fetching URL: " + url + " - Status code: " + e.getStatusCode(),
+                    e);
         } catch (IOException e) {
-            logger.error(
-                    "Failed to fetch the document from the URL: " + url + "\n" + e.getMessage(), e);
+            logger.error("IO error fetching URL: " + url, e);
         }
-
     }
 
 

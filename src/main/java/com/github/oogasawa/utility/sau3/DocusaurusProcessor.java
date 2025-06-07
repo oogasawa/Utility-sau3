@@ -316,7 +316,7 @@ public class DocusaurusProcessor {
 
         while ((line = reader.readLine()) != null) {
             // Detect start or end of a block with many dashes or centered title
-            if (line.matches("^-{60,}") || line.trim().matches(".*Update available.*")) {
+            if (line.matches("-{60,}") || line.trim().matches(".*Update available.*")) {
                 insideImportantBlock = true;
                 System.out.println(line);
                 continue;
@@ -325,7 +325,7 @@ public class DocusaurusProcessor {
             else if (insideImportantBlock) {
                 System.out.println(line);
                 // End condition: when consecutive empty lines appear or the output transitions to a different section
-                if (line.matches("^-{60,}")) {
+                if (line.matches("-{60,}")) {
                     insideImportantBlock = false;
                 }
                 continue;
