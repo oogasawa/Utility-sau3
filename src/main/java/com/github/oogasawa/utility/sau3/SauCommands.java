@@ -3,6 +3,7 @@ package com.github.oogasawa.utility.sau3;
 import java.io.IOException;
 import com.github.oogasawa.utility.cli.CommandRepository;
 import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
+import com.github.oogasawa.utility.sau3.gemini.GeminiTranslate;
 import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
 import com.github.oogasawa.utility.sau3.opensearch.IndexConf;
 import com.github.oogasawa.utility.sau3.opensearch.Indexer;
@@ -37,6 +38,7 @@ public class SauCommands {
         sauDeployCommand();
         sauIndexCommand();
         sauStartCommand();
+        sauTranslateCommand();
         sauUpdateIndexCommand();
         sauUrlCommand();
     }
@@ -138,6 +140,23 @@ public class SauCommands {
                 "Start the Docusaurus development server with filtered output and automatic port conflict handling.",                             
                 (CommandLine cl) -> {
                     DocusaurusProcessor.startDocusaurus();
+                });
+
+    }    
+
+
+    
+    public void sauTranslateCommand() {
+        Options opts = new Options();
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:translate", opts,
+                "Translate Japanese to English with gemini AI",                             
+                (CommandLine cl) -> {
+                    try {
+                        GeminiTranslate.translate();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 });
 
     }    
