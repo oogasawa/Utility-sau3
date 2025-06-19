@@ -1,6 +1,7 @@
 package com.github.oogasawa.utility.sau3;
 
 import com.github.oogasawa.utility.cli.CommandRepository;
+import com.github.oogasawa.utility.sau3.gemini.GeminiCommands;
 import com.github.oogasawa.utility.sau3.git.GitCommands;
 import com.github.oogasawa.utility.sau3.markdown.MdCommands;
 import com.github.oogasawa.utility.sau3.sautest.SauTestCommands;
@@ -15,7 +16,7 @@ public class App
 
     private static final Logger logger = LoggerFactory.getLogger(App.class);
 
-    String      synopsis = "java -jar Utility-sau3-fat.jar <command> <options>";
+    String      synopsis = "java -jar Utility-sau3-VERSION.jar <command> <options>";
     CommandRepository cmdRepos     = new CommandRepository();
 
 
@@ -62,7 +63,9 @@ public class App
     
     public void setupCommands() {
 
-
+        GeminiCommands geminiCommands = new GeminiCommands();
+        geminiCommands.setupCommands(this.cmdRepos);
+        
         GitCommands gitCommands = new GitCommands();
         gitCommands.setupCommands(this.cmdRepos);
 

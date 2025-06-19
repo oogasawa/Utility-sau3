@@ -5,26 +5,29 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import org.json.*;
 
+/**
+ * This class reads English text from standard input,
+ * sends it to Gemini AI for English-to-Japanese translation,
+ * and prints the result to standard output.
+ */
+public class ToJapanese {
 
-public class GeminiTranslate {
-    
-    public static void translate() throws Exception {
-        String apiKey = "AIzaSyDlWxjq4Wo0jWiO3vFmKklrn_ItHmB5HVY";
-        String model = "gemini-2.0-flash";
-        String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+    public static void translate(String model, String apikey) throws Exception {
 
-        // 標準入力から日本語テキストを読み取る
+        String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apikey;
+
+        // Read English text from standard input
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         StringBuilder inputBuilder = new StringBuilder();
         String line;
         while ((line = reader.readLine()) != null) {
             inputBuilder.append(line).append("\n");
         }
-        String promptText = "Translate the following Japanese text into natural English:\n\n" + inputBuilder.toString().trim();
 
-        // JSONリクエスト生成
+        String promptText = "Translate the following English text into natural Japanese:\n\n"
+                          + inputBuilder.toString().trim();
+
         String json = "{\"contents\": [{\"parts\": [{\"text\": " + toJsonString(promptText) + "}]}]}";
-
 
         HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
         conn.setRequestMethod("POST");
@@ -50,7 +53,6 @@ public class GeminiTranslate {
         String text = parts.getJSONObject(0).getString("text");
 
         System.out.println(text);
-
     }
 
     private static String toJsonString(String text) {
