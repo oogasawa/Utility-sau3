@@ -1,26 +1,17 @@
 package com.github.oogasawa.utility.sau3.gemini;
 
-import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.github.oogasawa.utility.cli.CommandRepository;
-import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
-import com.github.oogasawa.utility.sau3.gemini.GeminiParaphrase;
-import com.github.oogasawa.utility.sau3.gemini.ToEnglish;
-import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
-import com.github.oogasawa.utility.sau3.opensearch.IndexConf;
-import com.github.oogasawa.utility.sau3.opensearch.Indexer;
-import com.github.oogasawa.utility.sau3.opensearch.Sitemap;
-import com.github.oogasawa.utility.sau3.opensearch.SitemapEntry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 
 public class GeminiCommands {
 
-    private static final Logger logger = LoggerFactory.getLogger(GeminiCommands.class);
+    private static final Logger logger = Logger.getLogger(GeminiCommands.class.getName());
     
     /**
      * The command repository used to register commands.
@@ -254,7 +245,7 @@ public class GeminiCommands {
         try {
             Thread.sleep(msec);
         } catch (InterruptedException e) {
-            logger.warn("Interrupted", e);
+            logger.log(Level.WARNING, "Interrupted", e);
         }
     }
 

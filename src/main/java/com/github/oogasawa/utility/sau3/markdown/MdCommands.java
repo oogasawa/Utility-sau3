@@ -1,18 +1,17 @@
 package com.github.oogasawa.utility.sau3.markdown;
 
+import java.util.logging.Logger;
 import com.github.oogasawa.utility.cli.CommandRepository;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 
 public class MdCommands {
 
-    private static final Logger logger = LoggerFactory.getLogger(MdCommands.class);
+    private static final Logger logger = Logger.getLogger(MdCommands.class.getName());
     
     /**
      * The command repository used to register commands.

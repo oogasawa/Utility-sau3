@@ -11,10 +11,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A utility class for building and deploying Docusaurus documentation projects
@@ -63,7 +62,7 @@ public class DocusaurusProcessor {
     // ========================================================================
    
     
-    private static final Logger logger = LoggerFactory.getLogger(DocusaurusProcessor.class);
+    private static final Logger logger = Logger.getLogger(DocusaurusProcessor.class.getName());
 
 
 

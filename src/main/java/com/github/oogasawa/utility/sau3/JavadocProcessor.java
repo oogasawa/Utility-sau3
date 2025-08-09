@@ -3,13 +3,12 @@ package com.github.oogasawa.utility.sau3;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.github.oogasawa.utility.process.ProcessFacade;
 import com.github.oogasawa.utility.process.ProcessFacade.StdioData;
 import com.github.oogasawa.utility.process.ProcessFacade.StdioMode;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** This class builds Javadoc API documents and depoloys them to a specified directory. */
 public class JavadocProcessor {
@@ -29,7 +28,7 @@ public class JavadocProcessor {
     // Fields and Constructors
     // ========================================================================
     
-    private static final Logger logger = LoggerFactory.getLogger(JavadocProcessor.class);
+    private static final Logger logger = Logger.getLogger(JavadocProcessor.class.getName());
     
 
     // ========================================================================
@@ -49,7 +48,7 @@ public class JavadocProcessor {
                     buildAndDeploy(javaDir, destDir);
                     });
         } catch (IOException e) {
-            logger.error("Failed to list directories under the base directory: " + srcBaseDir.toString(), e);
+            logger.log(Level.SEVERE, "Failed to list directories under the base directory: " + srcBaseDir.toString(), e);
         }
     
     }
@@ -140,7 +139,7 @@ public class JavadocProcessor {
     public void deploy(Path javadocDir, Path destDir) {
 
         if (!Files.exists(javadocDir)) {
-            logger.error("Javadoc directory does not exist. The deployment was skipped.");
+            logger.log(Level.SEVERE, "Javadoc directory does not exist. The deployment was skipped.");
             return;
         }
 
@@ -154,7 +153,7 @@ public class JavadocProcessor {
             try {
                 Files.createDirectories(destDir.getParent());
             } catch (Exception e) {
-                logger.error("Failed to create a directory: " + destDir.getParent().toString());
+                logger.log(Level.SEVERE, "Failed to create a directory: " + destDir.getParent().toString());
             }
         }
 
@@ -167,7 +166,7 @@ public class JavadocProcessor {
         StdioData result = pf.exec("cp", "-rp", javadocDir.toString(), destDir.toString());
 
         if (result.getExitValue() != 0) {
-            logger.error("Failed to copy javadoc files: " + javadocDir.toString() + " -> " + destDir.toString());
+            logger.log(Level.SEVERE, "Failed to copy javadoc files: " + javadocDir.toString() + " -> " + destDir.toString());
         }
 
     }

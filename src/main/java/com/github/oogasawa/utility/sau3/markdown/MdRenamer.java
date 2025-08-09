@@ -7,19 +7,19 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** This class is for renaming a Docusaurus document.
  */
 public class MdRenamer {
 
     
-    private static final Logger logger = LoggerFactory.getLogger(MdRenamer.class);
+    private static final Logger logger = Logger.getLogger(MdRenamer.class.getName());
 
     
     /** A document name before renaming.
@@ -136,8 +136,8 @@ public class MdRenamer {
         }
 
         Path newDirPath = docDirPath.getParent().resolve(newName);
-        logger.debug("original document directory path: " + docDirPath.toString());
-        logger.debug("new document directory path: " + newDirPath.toString());
+        logger.fine("original document directory path: " + docDirPath.toString());
+        logger.fine("new document directory path: " + newDirPath.toString());
         
         docDirPath.toFile().renameTo(new File(newDirPath.toString()));
 
@@ -190,7 +190,7 @@ public class MdRenamer {
             tmpfile = Path.of(fObj.toString());
         }
         catch (IOException e) {
-            logger.error("Can not create a tempfile", e);
+            logger.log(Level.SEVERE, "Can not create a tempfile", e);
         }
 
 
@@ -224,7 +224,7 @@ public class MdRenamer {
             }
         }
         catch (IOException e) {
-            logger.error("Failed to copy a document to a temporary file.", e);
+            logger.log(Level.SEVERE, "Failed to copy a document to a temporary file.", e);
         }
 
         // 3. Rename the temporary markdown file to the original name.

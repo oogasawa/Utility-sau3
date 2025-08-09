@@ -7,7 +7,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpHost;
@@ -26,12 +27,9 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class Indexer {
 
-    private static final Logger logger = LoggerFactory.getLogger(Indexer.class);
+    private static final Logger logger = Logger.getLogger(Indexer.class.getName());
 
     String text = null;
     String title = null;
@@ -60,13 +58,13 @@ public class Indexer {
 
         }
         catch (IOException e) {
-            logger.error("IOError at creating a mapping.", e);
+            logger.log(Level.SEVERE, "IOError at creating a mapping.", e);
         }
         finally {
             try {
                 client.close();
             } catch (IOException e) {
-                logger.error("Failed to close the client.", e);
+                logger.log(Level.SEVERE, "Failed to close the client.", e);
             }    
         }
         
@@ -126,12 +124,12 @@ public class Indexer {
                 client.indices().delete(deleteIndexRequest, RequestOptions.DEFAULT);
             }
         } catch (IOException e) {
-            logger.error("IOError at deleting: " + indexName, e);
+            logger.log(Level.SEVERE, "IOError at deleting: " + indexName, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                logger.error("Failed to close the client.", e);
+                logger.log(Level.SEVERE, "Failed to close the client.", e);
             }
         }
 
@@ -152,7 +150,7 @@ public class Indexer {
 
             int statusCode = response.statusCode();
             if (statusCode != 200) {
-                logger.error("Failed to fetch the document from the URL: " + url
+                logger.log(Level.SEVERE, "Failed to fetch the document from the URL: " + url
                         + " - Status code: " + statusCode);
                 return;
             }
@@ -170,10 +168,10 @@ public class Indexer {
             this.url = url;
 
         } catch (org.jsoup.HttpStatusException e) {
-            logger.error("HTTP error fetching URL: " + url + " - Status code: " + e.getStatusCode(),
+            logger.log(Level.SEVERE, "HTTP error fetching URL: " + url + " - Status code: " + e.getStatusCode(),
                     e);
         } catch (IOException e) {
-            logger.error("IO error fetching URL: " + url, e);
+            logger.log(Level.SEVERE, "IO error fetching URL: " + url, e);
         }
     }
 
@@ -202,12 +200,12 @@ public class Indexer {
                          .id(calculateMD5(url)),
                     RequestOptions.DEFAULT);
         } catch (IOException e) {
-            logger.error("IOError at indexing: " + jsonString, e);
+            logger.log(Level.SEVERE, "IOError at indexing: " + jsonString, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                logger.error("Failed to close the client.", e);
+                logger.log(Level.SEVERE, "Failed to close the client.", e);
             }
         }
     }

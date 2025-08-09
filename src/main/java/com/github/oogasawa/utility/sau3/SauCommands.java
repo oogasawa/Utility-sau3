@@ -1,6 +1,8 @@
 package com.github.oogasawa.utility.sau3;
 
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.github.oogasawa.utility.cli.CommandRepository;
 import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
 import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
@@ -11,14 +13,12 @@ import com.github.oogasawa.utility.sau3.opensearch.SitemapEntry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 
 public class SauCommands {
 
-    private static final Logger logger = LoggerFactory.getLogger(SauCommands.class);
+    private static final Logger logger = Logger.getLogger(SauCommands.class.getName());
     
     /**
      * The command repository used to register commands.
@@ -121,7 +121,7 @@ public class SauCommands {
                                     }
                                 }
                             } catch (IOException e) {
-                                logger.error(String.format("Can not read %s : %s",
+                                logger.log(Level.SEVERE, String.format("Can not read %s : %s",
                                                            configFile, e.getMessage()),
                                              e);
                             }
@@ -189,7 +189,7 @@ public class SauCommands {
                                     }
                                 }
                             } catch (IOException e) {
-                                logger.error(String.format("Can not read %s : %s",
+                                logger.log(Level.SEVERE, String.format("Can not read %s : %s",
                                                            configFile, e.getMessage()),
                                              e);
                             }
@@ -235,7 +235,7 @@ public class SauCommands {
         try {
             Thread.sleep(msec);
         } catch (InterruptedException e) {
-            logger.warn("Interrupted", e);
+            logger.log(Level.WARNING, "Interrupted", e);
         }
     }
 

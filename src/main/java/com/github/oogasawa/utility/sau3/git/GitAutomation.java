@@ -10,13 +10,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class GitAutomation {
 
-    private static final Logger logger = LoggerFactory.getLogger(GitAutomation.class);
+    private static final Logger logger = Logger.getLogger(GitAutomation.class.getName());
     
     public static void pushAll(Path fileList) {
         // ファイル名（対象ディレクトリリストのファイル）
@@ -29,7 +29,7 @@ public class GitAutomation {
         List<String> directories = getDirectoriesFromFile(fileList);
         
         if (directories.isEmpty()) {
-            logger.warn("No directories to process. Please check the file: " + fileList.toString());
+            logger.warning("No directories to process. Please check the file: " + fileList.toString());
             return;
         }
         
@@ -57,7 +57,7 @@ public class GitAutomation {
                 directories.add(line);
             }
         } catch (IOException e) {
-            logger.error("Error reading file: " + fileList.toString());
+            logger.log(Level.SEVERE, "Error reading file: " + fileList.toString());
             e.printStackTrace();
         }
         
@@ -77,7 +77,7 @@ public class GitAutomation {
             
             return true;
         } catch (Exception e) {
-            logger.error("Error executing git commands in directory: " + directory);
+            logger.log(Level.SEVERE, "Error executing git commands in directory: " + directory);
             e.printStackTrace();
             return false;
         }

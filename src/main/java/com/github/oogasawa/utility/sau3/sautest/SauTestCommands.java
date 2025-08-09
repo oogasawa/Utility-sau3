@@ -3,19 +3,19 @@ package com.github.oogasawa.utility.sau3.sautest;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.github.oogasawa.utility.cli.CommandRepository;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 
 public class SauTestCommands {
 
-    private static final Logger logger = LoggerFactory.getLogger(SauTestCommands.class);
+    private static final Logger logger = Logger.getLogger(SauTestCommands.class.getName());
     
     /**
      * The command repository used to register commands.
@@ -71,7 +71,7 @@ public class SauTestCommands {
                     try {
                         DocuScriptProcessor.processAllSaveBlocks(markdownRootDir, codeDir);
                     } catch (IOException e) {
-                        logger.error("Can not save code blocks:", e);
+                        logger.log(Level.SEVERE, "Can not save code blocks:", e);
                     }
                 });
 
@@ -113,7 +113,7 @@ public class SauTestCommands {
                             try {
                                 DocuScriptProcessor.processAllExecuteBlocks(codeDir, division);
                             } catch (IOException | InterruptedException e) {
-                                logger.error("Can not execute test code blocks: ", e);
+                                logger.log(Level.SEVERE, "Can not execute test code blocks: ", e);
                             }
                        });
 

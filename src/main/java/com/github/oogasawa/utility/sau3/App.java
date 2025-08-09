@@ -1,6 +1,7 @@
 package com.github.oogasawa.utility.sau3;
 
 import com.github.oogasawa.utility.cli.CommandRepository;
+import com.github.oogasawa.utility.sau3.ex.ExCommands;
 import com.github.oogasawa.utility.sau3.gemini.GeminiCommands;
 import com.github.oogasawa.utility.sau3.git.GitCommands;
 import com.github.oogasawa.utility.sau3.markdown.MdCommands;
@@ -63,6 +64,9 @@ public class App
     
     public void setupCommands() {
 
+        ExCommands exCommands = new ExCommands();
+        exCommands.setupCommands(this.cmdRepos);
+        
         GeminiCommands geminiCommands = new GeminiCommands();
         geminiCommands.setupCommands(this.cmdRepos);
         

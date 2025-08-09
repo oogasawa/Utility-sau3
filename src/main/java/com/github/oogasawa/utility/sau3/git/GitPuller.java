@@ -4,19 +4,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.github.oogasawa.utility.process.ProcessFacade;
 import com.github.oogasawa.utility.process.ProcessFacade.StdioData;
 import com.github.oogasawa.utility.process.ProcessFacade.StdioMode;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-
 
 public class GitPuller {
 
-     private static final Logger logger = LoggerFactory.getLogger(GitPuller.class);
+     private static final Logger logger = Logger.getLogger(GitPuller.class.getName());
 
 
     public void pullAll(Path baseDir) {
@@ -35,7 +32,7 @@ public class GitPuller {
                 });
 
         } catch (IOException e) {
-            logger.error("IOException", e);
+            logger.log(Level.SEVERE, "IOException", e);
         }
     }
     

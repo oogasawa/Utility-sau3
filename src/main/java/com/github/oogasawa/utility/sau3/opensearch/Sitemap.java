@@ -17,15 +17,15 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 
 public class Sitemap {
 
-    private static final Logger logger = LoggerFactory.getLogger(Sitemap.class);
+    private static final Logger logger = Logger.getLogger(Sitemap.class.getName());
     
     Deque<SitemapEntry> sitemapEntries = new ArrayDeque<>();
 
@@ -54,9 +54,9 @@ public class Sitemap {
         } catch (FileNotFoundException
                  | URISyntaxException
                  | MalformedURLException e) {
-            logger.error("Unable to access sitemap.xml", e);
+            logger.log(Level.SEVERE, "Unable to access sitemap.xml", e);
         } catch (IOException e) {
-            logger.error("General IOException", e);
+            logger.log(Level.SEVERE, "General IOException", e);
         }
         
 
@@ -81,7 +81,7 @@ public class Sitemap {
                 if (event.isStartElement()) {
                     StartElement startElement = event.asStartElement();
                     // Check if we have a URL element
-                    logger.debug("startElement of parse(inputStream in): " + startElement.getName().getLocalPart());
+                    logger.fine("startElement of parse(inputStream in): " + startElement.getName().getLocalPart());
                     if (startElement.getName().getLocalPart().equals("url")) {
                                                 SitemapEntry entry = parseUrl(eventReader);
                         logger.info(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
@@ -90,7 +90,7 @@ public class Sitemap {
                 }
             }
         } catch (XMLStreamException e) {
-            logger.error("Unable to access sitemap.xml", e);
+            logger.log(Level.SEVERE, "Unable to access sitemap.xml", e);
         }
         
     }
@@ -104,7 +104,7 @@ public class Sitemap {
                 XMLEvent event = eventReader.nextEvent();
                 if (event.isStartElement()) {
                     StartElement startElement = event.asStartElement();
-                    logger.debug("startElement of parseUrl: " + startElement.getName().getLocalPart());
+                    logger.fine("startElement of parseUrl: " + startElement.getName().getLocalPart());
                     // Check if we have a URL element
                     if (startElement.getName().getLocalPart().equals("loc")) {
                         event = eventReader.nextEvent();
@@ -122,7 +122,7 @@ public class Sitemap {
                 }
             }
         } catch (XMLStreamException e) {
-            logger.error("XMLStreamException", e);
+            logger.log(Level.SEVERE, "XMLStreamException", e);
         }
         return entry;
     }
