@@ -10,8 +10,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * This class adjusts docusaurus.config.js in the batch process depending on where the docusaurus site is deployed.
@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DocusaurusConfigUpdator {
 
-    private static final Logger logger = LoggerFactory.getLogger(DocusaurusConfigUpdator.class);
+    private static final Logger logger = Logger.getLogger(DocusaurusConfigUpdator.class.getName());
     
 
     public static boolean containsStringInUrlLine(String filePath, String searchString) {
@@ -57,7 +57,7 @@ public class DocusaurusConfigUpdator {
             }
             Files.copy(Paths.get(sourcePath), Paths.get(destPath));
         } catch (IOException e) {
-            logger.error("Failed to backup the file.", e);
+            logger.log(Level.SEVERE, "Failed to backup the file.", e);
         }
     }
 
@@ -80,7 +80,7 @@ public class DocusaurusConfigUpdator {
             // Replace the original file with the temporary file.
             Files.move(Paths.get(tempFile), Paths.get(filePath), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            logger.error("Failed to replace the URL in the file.", e);
+            logger.log(Level.SEVERE, "Failed to replace the URL in the file.", e);
         }
     }
 

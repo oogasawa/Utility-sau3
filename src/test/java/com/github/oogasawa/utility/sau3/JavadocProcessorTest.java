@@ -20,8 +20,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 
 @DisplayName("javadoc:deploy command test")
@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class JavadocProcessorTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(JavadocProcessorTest.class.getName());
+    private static final Logger logger = Logger.getLogger(JavadocProcessorTest.class.getName());
 
 
     Path testSrcBaseDir = null;
@@ -43,15 +43,15 @@ public class JavadocProcessorTest {
 
             // Create temporary directory for a working space.
             testSrcBaseDir = Files.createTempDirectory(Path.of(System.getenv("PWD")), "srcdir");
-            logger.debug("srcdir absolute path = " + testSrcBaseDir);
+            logger.fine("srcdir absolute path = " + testSrcBaseDir);
             assertTrue((new File(testSrcBaseDir.toString())).exists());
 
             testDestBaseDir = Files.createTempDirectory(Path.of(System.getenv("PWD")), "destdir");
-            logger.debug("destdir absolute path = " + testDestBaseDir);
+            logger.fine("destdir absolute path = " + testDestBaseDir);
             assertTrue((new File(testDestBaseDir.toString())).exists());
 
         } catch (IOException e) {
-            logger.error("Could not create tmpdir", e);
+            logger.log(Level.SEVERE, "Could not create tmpdir", e);
         }
     }
 
@@ -77,7 +77,7 @@ public class JavadocProcessorTest {
             assertFalse(Files.exists(testDestBaseDir));
             
         } catch (IOException e) {
-            logger.error("Could not delete tmpdir", e);
+            logger.log(Level.SEVERE, "Could not delete tmpdir", e);
         }
     }
 
@@ -109,7 +109,7 @@ public class JavadocProcessorTest {
             assertFalse(Files.exists(testSrcBaseDir));
 
         } catch (IOException e) {
-            logger.error("Recursive deletion of the temporary directory could not completed: "
+            logger.log(Level.SEVERE, "Recursive deletion of the temporary directory could not completed: "
                          + testSrcBaseDir.toString(),
                          e);
         }
@@ -139,14 +139,14 @@ public class JavadocProcessorTest {
             // Deploy the test javadoc directory to the test destination directory.
             // (the test destination directory will be created if it does not exist.)
             JavadocProcessor processor = new JavadocProcessor();
-            logger.debug("testSrcBaseDir: " + testSrcBaseDir.toString());
-            logger.debug("testDestBaseDir: " + Files.exists(testDestBaseDir));
-            logger.debug("testDestBaseDir: " + testDestBaseDir.toString());
-            logger.debug("testDestBaseDir: " + Files.exists(testDestBaseDir));
-            logger.debug("javadocDir: " + javadocDir.toString());
-            logger.debug("javadocDir: " + Files.exists(javadocDir));
-            logger.debug("destDir: " + destDir.toString());
-            logger.debug("destDir: " + Files.exists(destDir));
+            logger.fine("testSrcBaseDir: " + testSrcBaseDir.toString());
+            logger.fine("testDestBaseDir: " + Files.exists(testDestBaseDir));
+            logger.fine("testDestBaseDir: " + testDestBaseDir.toString());
+            logger.fine("testDestBaseDir: " + Files.exists(testDestBaseDir));
+            logger.fine("javadocDir: " + javadocDir.toString());
+            logger.fine("javadocDir: " + Files.exists(javadocDir));
+            logger.fine("destDir: " + destDir.toString());
+            logger.fine("destDir: " + Files.exists(destDir));
 
             processor.deploy(javadocDir, destDir);
 
@@ -157,7 +157,7 @@ public class JavadocProcessorTest {
             assertTrue(Files.exists(testDestBaseDir.resolve("your_project").resolve("index.html")));
 
         } catch (IOException e) {
-            logger.error("Deployment of the test javadoc directory could not completed.", e);
+            logger.log(Level.SEVERE, "Deployment of the test javadoc directory could not completed.", e);
         }
     }
 

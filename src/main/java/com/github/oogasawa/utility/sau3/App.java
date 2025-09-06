@@ -8,14 +8,13 @@ import com.github.oogasawa.utility.sau3.markdown.MdCommands;
 import com.github.oogasawa.utility.sau3.sautest.SauTestCommands;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 
 public class App
 {
 
-    private static final Logger logger = LoggerFactory.getLogger(App.class);
+    private static final Logger logger = Logger.getLogger(App.class.getName());
 
     String      synopsis = "java -jar Utility-sau3-VERSION.jar <command> <options>";
     CommandRepository cmdRepos     = new CommandRepository();

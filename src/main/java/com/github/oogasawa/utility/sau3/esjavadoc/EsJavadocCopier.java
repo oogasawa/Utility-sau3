@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.util.stream.Stream;
 import java.nio.file.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /** The {@code EsJavadocCopier} class is a utility class to copy javadoc files to a target directory.
  *    
@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  */
 public class EsJavadocCopier {
 
-    private static final Logger logger = LoggerFactory.getLogger(EsJavadocCopier.class);
+    private static final Logger logger = Logger.getLogger(EsJavadocCopier.class.getName());
 
 
     public void deploy(File dirList, Path targetDir) {
@@ -84,17 +84,17 @@ public class EsJavadocCopier {
                 p.waitFor();
                 }
                 catch (IOException e) {
-                    logger.error(String.format("Error occurred while copying %s to %s",
+                    logger.log(Level.SEVERE, String.format("Error occurred while copying %s to %s",
                                              dir, targetDir.toString()), e);
                 }
                 catch (InterruptedException e) {
-                    logger.warn("Interrupted", e);
+                    logger.log(Level.WARNING, "Interrupted", e);
                 }
                 });
             
         }
         catch (IOException e) {
-            logger.error(String.format("Error occurred while reading %s", dirList.toString()), e);
+            logger.log(Level.SEVERE, String.format("Error occurred while reading %s", dirList.toString()), e);
         }
     }
 }

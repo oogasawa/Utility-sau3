@@ -20,8 +20,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 
 @DisplayName("docusaurus:deploy command test")
@@ -29,7 +28,7 @@ import org.slf4j.LoggerFactory;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DocusaurusProcessorTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(DocusaurusProcessorTest.class);
+    private static final Logger logger = Logger.getLogger(DocusaurusProcessorTest.class.getName());
 
 
     Path testSrcBaseDir = null;

@@ -23,8 +23,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 
 @DisplayName("Sitemap parser test")
@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class SitemapTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(SitemapTest.class);
+    private static final Logger logger = Logger.getLogger(SitemapTest.class.getName());
 
     
     @Test
@@ -43,7 +43,7 @@ public class SitemapTest {
 
         try {
             URL sitemapUrl = this.getClass().getClassLoader().getResource("test_sitemap.xml");
-            logger.debug("sitemapUrl: " + sitemapUrl.toString());
+            logger.fine("sitemapUrl: " + sitemapUrl.toString());
             try (InputStream in = sitemapUrl.openStream()) {
                 sitemap.parse(in);
             }
@@ -52,7 +52,7 @@ public class SitemapTest {
             assertEquals(6, sitemapEntries.size());
 
         } catch (IOException e) {
-            logger.error("IOException at reading test_sitemap.xml", e);
+            logger.log(Level.SEVERE, "IOException at reading test_sitemap.xml", e);
         }
     }
 

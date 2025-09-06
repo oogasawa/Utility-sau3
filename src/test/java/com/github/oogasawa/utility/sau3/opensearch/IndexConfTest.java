@@ -20,13 +20,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
  
 
 public class IndexConfTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(IndexConf.class);
+    private static final Logger logger = Logger.getLogger(IndexConf.class.getName());
 
 
     @DisplayName(" - Scenario01 : Reading sitemaps from a configuration file.")
@@ -46,7 +46,7 @@ public class IndexConfTest {
                 indexConf.read(reader);
                         
             } catch (IOException e) {
-                logger.error("IOException at reading index.conf", e);
+                logger.log(Level.SEVERE, "IOException at reading index.conf", e);
             }
 
             List<String> sitemapUrls = indexConf.getSitemapUrls();
@@ -87,14 +87,14 @@ public class IndexConfTest {
         }
 
         public boolean hasEntry(Deque<SitemapEntry> list, String url) {
-            logger.debug("hasEntry method in IntexConfTest class");
-            logger.debug(String.format("list.size() = %d", list.size()));
+            logger.fine("hasEntry method in IntexConfTest class");
+            logger.fine(String.format("list.size() = %d", list.size()));
             boolean result = false;
             Iterator<SitemapEntry> iter = list.iterator();
 
             while (iter.hasNext()) { 
                 SitemapEntry entry = iter.next();
-                logger.debug(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
+                logger.fine(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
                 if (entry.getUrl().equals(url)) {
                     result = true;
                     break;
