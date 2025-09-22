@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -150,42 +151,347 @@ public class DocusaurusProcessor {
      * @see #runCommandAndFilterOutput(String[]) for output filtering behavior
      */
     public static void deploy(String dest) {
+        deploy(dest, null, null, null, null);
+    }
+
+    public static void deploy(String dest, String destServer, String destDir) {
+        deploy(dest, destServer, destDir, null, null);
+    }
+
+    public static void deploy(String dest, String destServer, String destDir, String sourceDir) {
+        deploy(dest, destServer, destDir, sourceDir, null);
+    }
+
+    public static void deploy(String dest, String destServer, String destDir, String sourceDir, String baseUrl) {
         try {
-            Path projectDir = Paths.get("").toAbsolutePath();
+            // Use sourceDir if specified, otherwise use current directory
+            Path projectDir = sourceDir != null ? Paths.get(sourceDir).toAbsolutePath() : Paths.get("").toAbsolutePath();
             String projectName = projectDir.getFileName().toString();
 
-            Path destDir = null;
+            // Determine destination directory
+            Path localDestDir = null;
             if (dest == null) {
-                destDir = Paths.get(System.getProperty("user.home"), "public_html", projectName);
-            }
-            else {
-                destDir = Paths.get(dest, projectName);
-            }
-            
-            System.out.println("Building project: " + projectName);
-            runCommand(new String[]{"npx", "browserslist@latest", "--update-db"});
-            runCommandAndFilterOutput(new String[]{"yarn", "run", "build"});
-
-            // Remove existing directory
-            if (Files.exists(destDir)) {
-                System.out.println("Removing existing: " + destDir);
-                deleteDirectoryRecursively(destDir.toFile());
-            }
-
-            // Copy build output
-            Path buildDir = projectDir.resolve("build");
-            if (Files.exists(buildDir)) {
-                System.out.println("Copying to: " + destDir);
-                copyDirectory(buildDir, destDir);
+                localDestDir = Paths.get(System.getProperty("user.home"), "public_html", projectName);
             } else {
-                System.err.println("Build directory not found: " + buildDir);
+                localDestDir = Paths.get(dest, projectName);
+            }
+
+            System.out.println("Building project: " + projectName + " (source: " + projectDir + ")");
+
+            // Update docusaurus config BEFORE building if destServer is specified
+            if (destServer != null) {
+                String serverUrl = destServer.startsWith("http") ? destServer : "http://" + destServer + "/";
+                String finalBaseUrl;
+
+                // Use provided baseUrl if specified
+                if (baseUrl != null) {
+                    finalBaseUrl = baseUrl;
+                } else {
+                    // Auto-generate baseUrl based on deployment location
+                    if ((destDir != null && destDir.contains("public_html")) ||
+                        (dest != null && dest.contains("public_html")) ||
+                        (destDir == null)) {  // If destDir is not specified, assume public_html
+                        finalBaseUrl = "/~" + System.getProperty("user.name") + "/" + projectName + "/";
+                    } else {
+                        finalBaseUrl = "/";
+                    }
+                }
+
+                System.out.println("Updating Docusaurus config BEFORE build: url=" + serverUrl + ", baseUrl=" + finalBaseUrl);
+                com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator.update(
+                    serverUrl, finalBaseUrl, projectDir.toFile(), projectName);
+            }
+
+            // Change to the project directory for building
+            try {
+                // Debug: Verify config file before build
+                if (destServer != null) {
+                    System.out.println("DEBUG: Verifying config before build...");
+                    Path configFile = projectDir.resolve("docusaurus.config.js");
+                    if (Files.exists(configFile)) {
+                        try {
+                            java.util.List<String> lines = Files.readAllLines(configFile);
+                            for (int i = 0; i < lines.size(); i++) {
+                                String line = lines.get(i);
+                                if (line.contains("url:") || line.contains("baseUrl:")) {
+                                    System.out.println("DEBUG: Config line " + (i+1) + ": " + line.trim());
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.err.println("DEBUG: Failed to read config file: " + e.getMessage());
+                        }
+                    }
+                }
+
+                ProcessBuilder browserListBuilder = new ProcessBuilder("npx", "browserslist@latest", "--update-db");
+                browserListBuilder.directory(projectDir.toFile());
+                browserListBuilder.inheritIO();
+                Process browserListProcess = browserListBuilder.start();
+                browserListProcess.waitFor();
+
+                // Run yarn build in the project directory
+                runCommandInDirectoryWithFilter(new String[]{"yarn", "run", "build"}, projectDir.toFile());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            // Handle remote deployment
+            if (destServer != null) {
+                // Deploy to remote server
+                Path buildDir = projectDir.resolve("build");
+                if (Files.exists(buildDir)) {
+                    // Use destDir if specified, otherwise use default $HOME/public_html
+                    String effectiveDestDir = destDir != null ? destDir : "$HOME/public_html";
+                    String remotePath = effectiveDestDir.replace("$HOME", "~") + "/" + projectName;
+                    System.out.println("Deploying to remote server: " + destServer + ":" + remotePath);
+
+                    // Test SSH connection first
+                    if (!testSSHConnection(destServer)) {
+                        System.err.println("Failed to connect to remote server: " + destServer);
+                        return;
+                    }
+
+                    // Remove existing remote directory completely, then recreate
+                    if (!removeAndCreateRemoteDirectory(destServer, remotePath)) {
+                        logger.log(Level.SEVERE, "Failed to prepare remote directory: " + destServer + ":" + remotePath);
+                        return;
+                    }
+
+                    // Use tar+scp+extract for faster deployment
+                    System.out.println("Creating tar archive...");
+                    String tarFileName = projectName + "_build.tar.gz";
+                    Path tarFilePath = projectDir.resolve(tarFileName);
+
+                    // Create tar archive of build directory
+                    if (!runCommandWithResult(new String[]{"tar", "-czf", tarFilePath.toString(),
+                                                          "-C", buildDir.toString(), "."})) {
+                        System.err.println("Failed to create tar archive");
+                        return;
+                    }
+
+                    System.out.println("Transferring archive to remote server...");
+                    // Transfer tar file via scp
+                    if (!runCommandWithResult(new String[]{"scp", "-o", "StrictHostKeyChecking=no",
+                                                          tarFilePath.toString(),
+                                                          destServer + ":~/" + tarFileName})) {
+                        System.err.println("Failed to transfer archive to remote server");
+                        // Clean up local tar file
+                        try { Files.deleteIfExists(tarFilePath); } catch (Exception e) {}
+                        return;
+                    }
+
+                    System.out.println("Extracting archive on remote server...");
+                    // Extract tar on remote server, set permissions, and clean up
+                    String extractCommands = "mkdir -p " + remotePath + " && " +
+                                           "tar -xzf ~/" + tarFileName + " -C " + remotePath + " && " +
+                                           "find " + remotePath + " -type f -exec chmod 644 {} \\; && " +
+                                           "find " + remotePath + " -type d -exec chmod 755 {} \\; && " +
+                                           "rm ~/" + tarFileName;
+                    if (!runCommandWithResult(new String[]{"ssh", "-o", "StrictHostKeyChecking=no",
+                                                          destServer, extractCommands})) {
+                        System.err.println("Failed to extract archive on remote server");
+                        // Clean up local tar file
+                        try { Files.deleteIfExists(tarFilePath); } catch (Exception e) {}
+                        return;
+                    }
+
+                    System.out.println("Set proper web permissions (files: 644, directories: 755)");
+
+                    // Clean up local tar file
+                    try {
+                        Files.deleteIfExists(tarFilePath);
+                        System.out.println("Cleaned up temporary archive");
+                    } catch (Exception e) {
+                        System.err.println("Warning: Failed to clean up local tar file: " + tarFilePath);
+                    }
+
+                    System.out.println("Remote deployment completed successfully!");
+                } else {
+                    System.err.println("Build directory not found: " + buildDir);
+                }
+            } else {
+                // Local deployment
+                if (Files.exists(localDestDir)) {
+                    System.out.println("Removing existing: " + localDestDir);
+                    deleteDirectoryRecursively(localDestDir.toFile());
+                }
+
+                Path buildDir = projectDir.resolve("build");
+                if (Files.exists(buildDir)) {
+                    System.out.println("Copying to: " + localDestDir);
+                    copyDirectory(buildDir, localDestDir);
+                } else {
+                    System.err.println("Build directory not found: " + buildDir);
+                }
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
+
+    /**
+     * Batch deploy multiple Docusaurus projects based on configuration file.
+     *
+     * @param configFile Path to configuration file containing project list
+     * @param destServer Optional destination server for remote deployment
+     * @param baseDir Base directory where all projects are located
+     * @param skipGitPull Whether to skip git pull for all projects
+     */
+    public static void batchDeploy(String configFile, String destServer, String baseDir, boolean skipGitPull) {
+        logger.info("Starting batch deployment...");
+        logger.info("Config file: " + configFile);
+        logger.info("Base directory: " + baseDir);
+        logger.info("Destination server: " + (destServer != null ? destServer : "local"));
+        logger.info("Skip git pull: " + skipGitPull);
+
+        try {
+            // Read project list from configuration file
+            java.util.List<String> projectNames = readProjectListFromConfig(configFile);
+
+            if (projectNames.isEmpty()) {
+                logger.log(Level.WARNING, "No projects found in configuration file: " + configFile);
+                return;
+            }
+
+            logger.info("Found " + projectNames.size() + " projects to deploy");
+
+            int successCount = 0;
+            int failureCount = 0;
+
+            for (String projectName : projectNames) {
+                Path projectDir = Paths.get(baseDir, projectName);
+
+                logger.info("=== Processing project: " + projectName + " ===");
+
+                if (!Files.exists(projectDir)) {
+                    logger.log(Level.WARNING, "Project directory not found: " + projectDir);
+                    failureCount++;
+                    continue;
+                }
+
+                try {
+                    // Git pull if not skipped
+                    if (!skipGitPull) {
+                        logger.info("Executing git pull for " + projectName);
+                        if (!runGitPull(projectDir.toString())) {
+                            logger.log(Level.WARNING, "Git pull failed for " + projectName + ", continuing with deployment...");
+                        }
+                    }
+
+                    // Deploy project
+                    logger.info("Deploying " + projectName);
+                    if (destServer != null) {
+                        // Remote deployment
+                        deploy(null, destServer, null, projectDir.toString(), null);
+                    } else {
+                        // Local deployment
+                        deploy(null, null, null, projectDir.toString(), null);
+                    }
+
+                    logger.info("Successfully deployed: " + projectName);
+                    successCount++;
+
+                } catch (Exception e) {
+                    logger.log(Level.SEVERE, "Failed to deploy " + projectName + ": " + e.getMessage(), e);
+                    failureCount++;
+                }
+
+                logger.info(""); // Empty line for readability
+            }
+
+            logger.info("=== Batch deployment completed ===");
+            logger.info("Successful deployments: " + successCount);
+            logger.info("Failed deployments: " + failureCount);
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Batch deployment failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Read project list from configuration file.
+     */
+    private static java.util.List<String> readProjectListFromConfig(String configFile) throws java.io.IOException {
+        java.util.List<String> projectNames = new java.util.ArrayList<>();
+        Path configPath = Paths.get(configFile);
+
+        if (!Files.exists(configPath)) {
+            throw new java.io.IOException("Configuration file not found: " + configFile);
+        }
+
+        java.util.List<String> lines = Files.readAllLines(configPath);
+        boolean inSitemapSection = false;
+
+        for (String line : lines) {
+            line = line.trim();
+
+            if (line.equals("[sitemap urls]")) {
+                inSitemapSection = true;
+                continue;
+            }
+
+            if (line.startsWith("[") && !line.equals("[sitemap urls]")) {
+                inSitemapSection = false;
+                continue;
+            }
+
+            if (inSitemapSection && !line.isEmpty() && line.startsWith("http://")) {
+                // Extract project name from URL: http://localhost/~oogasawa/PROJECT_NAME/sitemap.xml
+                String[] parts = line.split("/");
+                if (parts.length >= 4) {
+                    String userProject = parts[3]; // ~oogasawa
+                    if (parts.length >= 5) {
+                        String projectName = parts[4]; // PROJECT_NAME
+                        if (!projectName.equals("sitemap.xml")) {
+                            projectNames.add(projectName);
+                        }
+                    }
+                }
+            }
+        }
+
+        return projectNames;
+    }
+
+    /**
+     * Execute git pull in the specified directory.
+     */
+    private static boolean runGitPull(String projectDir) {
+        try {
+            ProcessBuilder gitPullBuilder = new ProcessBuilder("git", "pull");
+            gitPullBuilder.directory(new File(projectDir));
+            gitPullBuilder.redirectErrorStream(true);
+            Process gitPullProcess = gitPullBuilder.start();
+
+            // Capture output
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(gitPullProcess.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            int exitCode = gitPullProcess.waitFor();
+
+            if (exitCode == 0) {
+                logger.info("Git pull output: " + output.toString().trim());
+                return true;
+            } else {
+                logger.log(Level.WARNING, "Git pull failed (exit code: " + exitCode + ")");
+                logger.log(Level.WARNING, "Git pull output: " + output.toString().trim());
+                return false;
+            }
+
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "Exception during git pull: " + e.getMessage(), e);
+            return false;
+        }
+    }
+
+
     /**
      * Start the Docusaurus development server in the current directory.
      * 
@@ -299,6 +605,151 @@ public class DocusaurusProcessor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Run a shell command and return true if it succeeds (exit code 0).
+     */
+    private static boolean runCommandWithResult(String[] command) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(command);
+            Process process = builder.start();
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (IOException | InterruptedException e) {
+            logger.log(java.util.logging.Level.SEVERE, "Command execution failed: " + String.join(" ", command), e);
+            return false;
+        }
+    }
+
+    /**
+     * Run a shell command with detailed error logging.
+     */
+    private static boolean runCommandWithDetailedResult(String[] command, String operation) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+
+            // Capture output
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            int exitCode = process.waitFor();
+
+            if (exitCode == 0) {
+                logger.info("Successfully executed " + operation + ": " + String.join(" ", command));
+                if (output.length() > 0) {
+                    logger.info("Command output: " + output.toString().trim());
+                }
+                return true;
+            } else {
+                logger.log(Level.SEVERE, "Failed to " + operation + " (exit code: " + exitCode + ")");
+                logger.log(Level.SEVERE, "Command: " + String.join(" ", command));
+                if (output.length() > 0) {
+                    logger.log(Level.SEVERE, "Error output: " + output.toString().trim());
+                }
+                return false;
+            }
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "Exception while trying to " + operation + ": " + e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Test SSH connection to the remote server.
+     */
+    private static boolean testSSHConnection(String server) {
+        System.out.println("Testing SSH connection to " + server + "...");
+        return runCommandWithResult(new String[]{"ssh", "-o", "ConnectTimeout=10",
+                                                "-o", "BatchMode=yes",
+                                                "-o", "StrictHostKeyChecking=no",
+                                                server, "echo", "SSH connection successful"});
+    }
+
+    /**
+     * Remove existing remote directory completely, then recreate it.
+     */
+    private static boolean removeAndCreateRemoteDirectory(String server, String remotePath) {
+        logger.info("Removing existing remote directory: " + remotePath);
+        // First, remove the directory completely (ignore errors if it doesn't exist)
+        runCommandWithDetailedResult(new String[]{"ssh", "-o", "BatchMode=yes",
+                                                 "-o", "StrictHostKeyChecking=no",
+                                                 server, "rm", "-rf", remotePath},
+                                     "remove directory");
+
+        logger.info("Creating remote directory: " + remotePath);
+        // Then create it fresh
+        return runCommandWithDetailedResult(new String[]{"ssh", "-o", "BatchMode=yes",
+                                                        "-o", "StrictHostKeyChecking=no",
+                                                        server, "mkdir", "-p", remotePath},
+                                           "create directory");
+    }
+
+    /**
+     * Create remote directory using SSH.
+     */
+    private static boolean createRemoteDirectory(String server, String remotePath) {
+        logger.info("Creating remote directory: " + remotePath);
+        return runCommandWithResult(new String[]{"ssh", "-o", "BatchMode=yes",
+                                                "-o", "StrictHostKeyChecking=no",
+                                                server, "mkdir", "-p", remotePath});
+    }
+
+    /**
+     * Clean remote directory contents using SSH.
+     */
+    private static boolean cleanRemoteDirectory(String server, String remotePath) {
+        System.out.println("Cleaning remote directory: " + remotePath);
+        // Remove contents but keep the directory itself
+        return runCommandWithResult(new String[]{"ssh", "-o", "BatchMode=yes",
+                                                "-o", "StrictHostKeyChecking=no",
+                                                server, "rm", "-rf", remotePath + "/*"});
+    }
+
+    /**
+     * Run a shell command in a specific directory with output filtering.
+     */
+    private static void runCommandInDirectoryWithFilter(String[] command, File directory) throws IOException, InterruptedException {
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(directory);
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+        boolean insideImportantBlock = false;
+
+        while ((line = reader.readLine()) != null) {
+            // Detect start or end of a block with many dashes or centered title
+            if (line.matches("-{60,}") || line.trim().matches(".*Update available.*")) {
+                insideImportantBlock = true;
+                System.out.println(line);
+                continue;
+            }
+
+            else if (insideImportantBlock) {
+                System.out.println(line);
+                // End condition: when consecutive empty lines appear or the output transitions to a different section
+                if (line.matches("-{60,}")) {
+                    insideImportantBlock = false;
+                }
+                continue;
+            }
+
+            // fallback: match by keywords
+            else if (shouldDisplayLine(line)) {
+                System.out.println(line);
+            }
+        }
+
+        process.waitFor();
     }
 
     /**

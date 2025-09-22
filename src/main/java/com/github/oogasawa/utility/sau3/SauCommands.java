@@ -35,10 +35,10 @@ public class SauCommands {
 
         sauBuildCommand();
         sauDeployCommand();
+        sauBatchDeployCommand();
         sauIndexCommand();
         sauStartCommand();
         sauUpdateIndexCommand();
-        sauUrlCommand();
     }
 
 
@@ -70,19 +70,108 @@ public class SauCommands {
                        .required(false)
                        .build());
 
-        
+        opts.addOption(Option.builder("destServer")
+                       .option("s")
+                       .longOpt("destServer")
+                       .hasArg(true)
+                       .argName("destServer")
+                       .desc("Destination server name/IP address (e.g. 133.39.114.45)")
+                       .required(false)
+                       .build());
+
+        opts.addOption(Option.builder("destDir")
+                       .longOpt("destDir")
+                       .hasArg(true)
+                       .argName("destDir")
+                       .desc("Remote destination directory path (e.g. $HOME/public_html, /var/www/html)")
+                       .required(false)
+                       .build());
+
+        opts.addOption(Option.builder("sourceDir")
+                       .longOpt("sourceDir")
+                       .hasArg(true)
+                       .argName("sourceDir")
+                       .desc("Docusaurus project source directory (default: current directory)")
+                       .required(false)
+                       .build());
+
+        opts.addOption(Option.builder("baseUrl")
+                       .longOpt("baseUrl")
+                       .hasArg(true)
+                       .argName("baseUrl")
+                       .desc("Base URL for Docusaurus site (e.g. /~username/projectname/; default: auto-generated)")
+                       .required(false)
+                       .build());
+
+
         this.cmdRepos.addCommand("Docusaurus commands", "sau:deploy", opts,
                 "Build the Docusaurus project with filtered output and deploy it to the public_html directory.",
-                             
+
                 (CommandLine cl) -> {
                     String dest = cl.getOptionValue("dest");
-                    DocusaurusProcessor.deploy(dest);
+                    String destServer = cl.getOptionValue("destServer");
+                    String destDir = cl.getOptionValue("destDir");
+                    String sourceDir = cl.getOptionValue("sourceDir", System.getProperty("user.dir"));
+                    String baseUrl = cl.getOptionValue("baseUrl");
+                    DocusaurusProcessor.deploy(dest, destServer, destDir, sourceDir, baseUrl);
                 });
 
-    }    
+    }
 
-    
-    
+
+
+    public void sauBatchDeployCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("conf")
+                       .option("c")
+                       .longOpt("conf")
+                       .hasArg(true)
+                       .argName("conf")
+                       .desc("Configuration file containing project list (default: docusaurus_ja.conf)")
+                       .required(false)
+                       .build());
+
+        opts.addOption(Option.builder("destServer")
+                       .option("s")
+                       .longOpt("destServer")
+                       .hasArg(true)
+                       .argName("destServer")
+                       .desc("Destination server name/IP address for all projects")
+                       .required(false)
+                       .build());
+
+        opts.addOption(Option.builder("baseDir")
+                       .longOpt("baseDir")
+                       .hasArg(true)
+                       .argName("baseDir")
+                       .desc("Base directory where all projects are located (default: current directory)")
+                       .required(false)
+                       .build());
+
+        opts.addOption(Option.builder("skipGitPull")
+                       .longOpt("skipGitPull")
+                       .hasArg(false)
+                       .desc("Skip git pull for all projects")
+                       .required(false)
+                       .build());
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:batchDeploy", opts,
+                "Batch deploy multiple Docusaurus projects from configuration file.",
+
+                (CommandLine cl) -> {
+                    String configFile = cl.getOptionValue("conf", "docusaurus_ja.conf");
+                    String destServer = cl.getOptionValue("destServer");
+                    String baseDir = cl.getOptionValue("baseDir", System.getProperty("user.dir"));
+                    boolean skipGitPull = cl.hasOption("skipGitPull");
+
+                    DocusaurusProcessor.batchDeploy(configFile, destServer, baseDir, skipGitPull);
+                });
+
+    }
+
+
+
     /**  docusaurus:index  */
     public void sauIndexCommand() {
         Options opts = new Options();
@@ -202,32 +291,6 @@ public class SauCommands {
 
     
 
-    /**  Change the url: setting in docusaurus.config.js to the value given in the options.
-     *
-     */
-    public void sauUrlCommand() {
-        Options opts = new Options();
-
-        opts.addOption(Option.builder("url")
-                        .option("u")
-                        .longOpt("url")
-                        .hasArg(true)
-                        .argName("url")
-                        .desc("Change the URL of the Docusaurus site.")
-                        .required(true)
-                        .build());
-
-
-        this.cmdRepos.addCommand("Docusaurus commands", "sau:url", opts,
-                       "Change the URL of the Docusaurus site.",
-                       (CommandLine cl)-> {
-                                 logger.info("docusaurus:url");
-                            String url = cl.getOptionValue("url");
-
-                            DocusaurusConfigUpdator.update(url);
-                       });
-
-    }
 
 
     
