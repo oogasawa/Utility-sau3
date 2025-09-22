@@ -198,8 +198,11 @@ public class DocusaurusProcessor {
                 }
 
                 System.out.println("Updating Docusaurus config BEFORE build: url=" + serverUrl + ", baseUrl=" + finalBaseUrl);
+                // Use destServer as search server (without http:// prefix)
+                String searchServer = destServer.startsWith("http") ?
+                    destServer.replaceAll("^https?://", "").replaceAll("/$", "") : destServer;
                 com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator.update(
-                    serverUrl, finalBaseUrl, projectDir.toFile(), projectName);
+                    serverUrl, finalBaseUrl, projectDir.toFile(), projectName, searchServer);
             }
 
             // Change to the project directory for building
@@ -367,8 +370,24 @@ public class DocusaurusProcessor {
 
                 if (!Files.exists(projectDir)) {
                     logger.log(Level.WARNING, "Project directory not found: " + projectDir);
-                    failureCount++;
-                    continue;
+                    logger.info("Attempting to clone project from GitHub: " + projectName);
+
+                    if (cloneProjectFromGitHub(baseDir, projectName)) {
+                        logger.info("Successfully cloned " + projectName + ", proceeding with yarn install");
+                        logger.info("Running yarn install in directory: " + projectDir.toString());
+
+                        boolean yarnSuccess = runYarnInstall(projectDir.toString());
+                        if (yarnSuccess) {
+                            logger.info("✅ Yarn install COMPLETED successfully for " + projectName + ", proceeding with deployment");
+                        } else {
+                            logger.log(Level.WARNING, "❌ Yarn install FAILED for " + projectName + ", but continuing with deployment...");
+                            logger.log(Level.WARNING, "Project " + projectName + " may not build properly due to missing dependencies");
+                        }
+                    } else {
+                        logger.log(Level.WARNING, "Failed to clone " + projectName + ", skipping deployment");
+                        failureCount++;
+                        continue;
+                    }
                 }
 
                 try {
@@ -415,13 +434,37 @@ public class DocusaurusProcessor {
      */
     private static java.util.List<String> readProjectListFromConfig(String configFile) throws java.io.IOException {
         java.util.List<String> projectNames = new java.util.ArrayList<>();
-        Path configPath = Paths.get(configFile);
 
-        if (!Files.exists(configPath)) {
-            throw new java.io.IOException("Configuration file not found: " + configFile);
+        logger.info("DEBUG: Attempting to read config file from resources: " + configFile);
+
+        // Try to read from resources first
+        try (java.io.InputStream is = DocusaurusProcessor.class.getResourceAsStream("/" + configFile);
+             java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is))) {
+
+            if (is == null) {
+                // Fallback to filesystem
+                logger.info("DEBUG: Resource not found, falling back to filesystem: " + configFile);
+                Path configPath = Paths.get(configFile);
+                if (!Files.exists(configPath)) {
+                    throw new java.io.IOException("Configuration file not found: " + configFile);
+                }
+                java.util.List<String> lines = Files.readAllLines(configPath);
+                logger.info("DEBUG: Read " + lines.size() + " lines from filesystem config file");
+                return parseConfigLines(lines, projectNames);
+            }
+
+            logger.info("DEBUG: Successfully opened config file from resources");
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lines.add(line);
+            }
+            logger.info("DEBUG: Read " + lines.size() + " lines from resource config file");
+            return parseConfigLines(lines, projectNames);
         }
+    }
 
-        java.util.List<String> lines = Files.readAllLines(configPath);
+    private static java.util.List<String> parseConfigLines(java.util.List<String> lines, java.util.List<String> projectNames) {
         boolean inSitemapSection = false;
 
         for (String line : lines) {
@@ -446,6 +489,7 @@ public class DocusaurusProcessor {
                         String projectName = parts[4]; // PROJECT_NAME
                         if (!projectName.equals("sitemap.xml")) {
                             projectNames.add(projectName);
+                            logger.info("DEBUG: Added project: " + projectName);
                         }
                     }
                 }
@@ -465,7 +509,7 @@ public class DocusaurusProcessor {
             gitPullBuilder.redirectErrorStream(true);
             Process gitPullProcess = gitPullBuilder.start();
 
-            // Capture output
+            // Capture output with 5 minute timeout
             StringBuilder output = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(gitPullProcess.getInputStream()))) {
                 String line;
@@ -474,8 +518,8 @@ public class DocusaurusProcessor {
                 }
             }
 
+            // Git pull is mostly local operation - wait without timeout
             int exitCode = gitPullProcess.waitFor();
-
             if (exitCode == 0) {
                 logger.info("Git pull output: " + output.toString().trim());
                 return true;
@@ -489,6 +533,129 @@ public class DocusaurusProcessor {
             logger.log(Level.SEVERE, "Exception during git pull: " + e.getMessage(), e);
             return false;
         }
+    }
+
+    /**
+     * Clone a project from GitHub using SSH.
+     */
+    private static boolean cloneProjectFromGitHub(String baseDir, String projectName) {
+        try {
+            String gitUrl = "git@github-main:oogasawa/" + projectName;
+            ProcessBuilder gitCloneBuilder = new ProcessBuilder("git", "clone", gitUrl);
+            gitCloneBuilder.directory(new File(baseDir));
+            gitCloneBuilder.redirectErrorStream(true);
+            Process gitCloneProcess = gitCloneBuilder.start();
+
+            // Capture output
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(gitCloneProcess.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            // Git clone requires network access - use 20 minute timeout for large repositories
+            boolean finished = gitCloneProcess.waitFor(20, java.util.concurrent.TimeUnit.MINUTES);
+            if (!finished) {
+                gitCloneProcess.destroyForcibly();
+                logger.log(Level.WARNING, "Git clone timed out after 20 minutes for: " + projectName);
+                return false;
+            }
+
+            int exitCode = gitCloneProcess.exitValue();
+            if (exitCode == 0) {
+                logger.info("Git clone successful for " + projectName);
+                logger.info("Git clone output: " + output.toString().trim());
+                return true;
+            } else {
+                logger.log(Level.WARNING, "Git clone failed for " + projectName + " (exit code: " + exitCode + ")");
+                logger.log(Level.WARNING, "Git clone output: " + output.toString().trim());
+                return false;
+            }
+
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "Exception during git clone: " + e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Run yarn install in the specified directory.
+     */
+    private static boolean runYarnInstall(String projectDir) {
+        logger.info("🔄 Starting yarn install process for: " + projectDir);
+
+        try {
+            // Check if package.json exists
+            File packageJson = new File(projectDir, "package.json");
+            if (!packageJson.exists()) {
+                logger.log(Level.WARNING, "❌ package.json not found in " + projectDir + ", skipping yarn install");
+                return false;
+            }
+
+            ProcessBuilder yarnBuilder = new ProcessBuilder("yarn", "install");
+            yarnBuilder.directory(new File(projectDir));
+            yarnBuilder.redirectErrorStream(true);
+            Process yarnProcess = yarnBuilder.start();
+
+            // Capture output
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(yarnProcess.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            // Yarn install requires network downloads - use 20 minute timeout for large dependency trees
+            boolean finished = yarnProcess.waitFor(20, java.util.concurrent.TimeUnit.MINUTES);
+            if (!finished) {
+                yarnProcess.destroyForcibly();
+                logger.log(Level.WARNING, "⏰ Yarn install TIMED OUT after 20 minutes for: " + projectDir);
+                logger.log(Level.WARNING, "Partial yarn output: " + output.toString().trim());
+                return false;
+            }
+
+            int exitCode = yarnProcess.exitValue();
+            if (exitCode == 0) {
+                logger.info("✅ Yarn install SUCCESSFUL for " + projectDir + " (exit code: 0)");
+                logger.info("📝 Yarn install output summary: " + getSummaryFromYarnOutput(output.toString()));
+                return true;
+            } else {
+                logger.log(Level.SEVERE, "❌ Yarn install FAILED for " + projectDir + " (exit code: " + exitCode + ")");
+                logger.log(Level.SEVERE, "💥 Full yarn error output: " + output.toString().trim());
+                return false;
+            }
+
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "💥 Exception during yarn install for " + projectDir + ": " + e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Extract summary information from yarn output.
+     */
+    private static String getSummaryFromYarnOutput(String output) {
+        if (output == null || output.trim().isEmpty()) {
+            return "No output captured";
+        }
+
+        String[] lines = output.split("\n");
+        StringBuilder summary = new StringBuilder();
+
+        for (String line : lines) {
+            if (line.contains("Done in") ||
+                line.contains("success") ||
+                line.contains("warning") ||
+                line.contains("error") ||
+                line.contains("Saved lockfile")) {
+                summary.append(line.trim()).append("; ");
+            }
+        }
+
+        return summary.length() > 0 ? summary.toString() : "Standard yarn install completed";
     }
 
 

@@ -33,7 +33,7 @@ public class DocusaurusConfigUpdator {
 
     public static boolean containsStringInUrlLine(String filePath, String searchString) {
         boolean found = false;
-        
+
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -45,7 +45,25 @@ public class DocusaurusConfigUpdator {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        
+
+        return found;
+    }
+
+    public static boolean containsStringInFile(String filePath, String searchString) {
+        boolean found = false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains(searchString)) {
+                    found = true;
+                    break; // 文字列が見つかったらループを終了
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         return found;
     }
 
@@ -66,9 +84,14 @@ public class DocusaurusConfigUpdator {
     }
 
     public static void replaceUrlInFile(String filePath, String newUrl, String newBaseUrl) {
+        replaceUrlInFile(filePath, newUrl, newBaseUrl, null);
+    }
+
+    public static void replaceUrlInFile(String filePath, String newUrl, String newBaseUrl, String newSearchServer) {
         logger.info("Starting config file update: " + filePath);
         logger.info("Target newUrl: " + newUrl);
         logger.info("Target newBaseUrl: " + newBaseUrl);
+        logger.info("Target newSearchServer: " + newSearchServer);
 
         try {
             // Log original file content
@@ -78,7 +101,8 @@ public class DocusaurusConfigUpdator {
                 int lineNumber = 0;
                 while ((line = reader.readLine()) != null) {
                     lineNumber++;
-                    if (line.trim().startsWith("url: '") || line.trim().startsWith("baseUrl: '")) {
+                    if (line.trim().startsWith("url: '") || line.trim().startsWith("baseUrl: '") ||
+                        line.contains("8080/search")) {
                         logger.info("Line " + lineNumber + " BEFORE: " + line.trim());
                     }
                 }
@@ -88,6 +112,7 @@ public class DocusaurusConfigUpdator {
             String tempFile = filePath + ".tmp";
             boolean urlUpdated = false;
             boolean baseUrlUpdated = false;
+            boolean searchUrlUpdated = false;
 
             try (BufferedReader reader = new BufferedReader(new FileReader(filePath));
                  BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
@@ -108,6 +133,19 @@ public class DocusaurusConfigUpdator {
                         line = line.replaceAll("baseUrl: '[^']*'", "baseUrl: '" + newBaseUrl + "'");
                         baseUrlUpdated = true;
                         logger.info("Line " + lineNumber + " AFTER (baseUrl): " + line.trim());
+                    } else if (newSearchServer != null && line.contains("8080/search")) {
+                        // Search URL を新しいサーバーで置換
+                        // パターン: href="http://any-ip:8080/search" → href="http://newServer:8080/search"
+                        logger.info("SEARCH URL MATCH FOUND: Line " + lineNumber + " contains 8080/search: " + line.trim());
+                        String searchOriginalLine = line;
+                        String newSearchUrl = "http://" + newSearchServer + ":8080/search";
+                        line = line.replaceAll("href=\"http://[^:]+:8080/search\"", "href=\"" + newSearchUrl + "\"");
+                        if (!searchOriginalLine.equals(line)) {
+                            searchUrlUpdated = true;
+                            logger.info("SEARCH URL REPLACED: Line " + lineNumber + " AFTER: " + line.trim());
+                        } else {
+                            logger.info("SEARCH URL NOT REPLACED: Pattern did not match on line " + lineNumber);
+                        }
                     }
                     writer.write(line + System.lineSeparator());
                 }
@@ -116,7 +154,7 @@ public class DocusaurusConfigUpdator {
             // Replace the original file with the temporary file.
             Files.move(Paths.get(tempFile), Paths.get(filePath), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
-            logger.info("Config file update completed. URL updated: " + urlUpdated + ", BaseUrl updated: " + baseUrlUpdated);
+            logger.info("Config file update completed. URL updated: " + urlUpdated + ", BaseUrl updated: " + baseUrlUpdated + ", SearchUrl updated: " + searchUrlUpdated);
 
             // Verify the changes
             logger.info("Verifying updated config file...");
@@ -125,7 +163,8 @@ public class DocusaurusConfigUpdator {
                 int lineNumber = 0;
                 while ((line = reader.readLine()) != null) {
                     lineNumber++;
-                    if (line.trim().startsWith("url: '") || line.trim().startsWith("baseUrl: '")) {
+                    if (line.trim().startsWith("url: '") || line.trim().startsWith("baseUrl: '") ||
+                        line.contains("8080/search")) {
                         logger.info("Line " + lineNumber + " FINAL: " + line.trim());
                     }
                 }
@@ -146,8 +185,12 @@ public class DocusaurusConfigUpdator {
     }
 
     public static void update(String newUrl, String newBaseUrl, File sauDir, String projectName) {
+        update(newUrl, newBaseUrl, sauDir, projectName, null);
+    }
+
+    public static void update(String newUrl, String newBaseUrl, File sauDir, String projectName, String newSearchServer) {
         logger.info("POSITIVE_CONTROL: DocusaurusConfigUpdator.update method called");
-        logger.info("DEBUG: DocusaurusConfigUpdator.update called with newUrl=" + newUrl + ", newBaseUrl=" + newBaseUrl + ", sauDir=" + sauDir + ", projectName=" + projectName);
+        logger.info("DEBUG: DocusaurusConfigUpdator.update called with newUrl=" + newUrl + ", newBaseUrl=" + newBaseUrl + ", sauDir=" + sauDir + ", projectName=" + projectName + ", newSearchServer=" + newSearchServer);
 
         if (sauDir == null) {
             // Get the current directory.
@@ -176,11 +219,18 @@ public class DocusaurusConfigUpdator {
             baseUrlToUse = "/~" + System.getProperty("user.name") + "/" + projectName + "/";
         }
 
-        if (!containsStringInUrlLine(filePath, newUrl)) {
+        boolean needsUpdate = !containsStringInUrlLine(filePath, newUrl);
+        boolean needsSearchUrlUpdate = (newSearchServer != null && containsStringInFile(filePath, "8080/search"));
+
+        logger.info("DEBUG UPDATE CONDITIONS: needsUpdate=" + needsUpdate + ", needsSearchUrlUpdate=" + needsSearchUrlUpdate);
+        logger.info("DEBUG: newSearchServer=" + newSearchServer);
+        logger.info("DEBUG: containsStringInFile(filePath, \"8080/search\")=" + containsStringInFile(filePath, "8080/search"));
+
+        if (needsUpdate || needsSearchUrlUpdate) {
             // Backup the original file.
             backupFile(filePath, backupFilePath);
-            // replace the URL and baseUrl in the original file.
-            replaceUrlInFile(filePath, newUrl, baseUrlToUse);
+            // replace the URL, baseUrl, and searchUrl in the original file.
+            replaceUrlInFile(filePath, newUrl, baseUrlToUse, newSearchServer);
         }
     }
 

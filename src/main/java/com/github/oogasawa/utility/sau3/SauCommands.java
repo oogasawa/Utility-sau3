@@ -39,6 +39,7 @@ public class SauCommands {
         sauIndexCommand();
         sauStartCommand();
         sauUpdateIndexCommand();
+        sauIndexWithMappingCommand();
     }
 
 
@@ -197,7 +198,13 @@ public class SauCommands {
                             //indexer.deleteIndexIfExists();
                             //indexer.createIndex();
                             try {
-                                indexConf.read(configFile);
+                                // Try to read from resources first, then fallback to file system
+                                try {
+                                    indexConf.readFromResource(configFile);
+                                } catch (IOException e) {
+                                    logger.info("Resource not found, trying file system: " + configFile);
+                                    indexConf.read(configFile);
+                                }
                                 String indexName = indexConf.getIndexName();
                                 for (String sitemapUrl : indexConf.getSitemapUrls()) {
                                     logger.info(sitemapUrl);
@@ -254,13 +261,19 @@ public class SauCommands {
                        (CommandLine cl)-> {
                             logger.info("docusaurus:updateIndex");
                             String configFile = cl.getOptionValue("conf");
-                            
+
                             IndexConf indexConf = new IndexConf();
                             Indexer indexer = new Indexer();
                             //indexer.deleteIndexIfExists();
                             //indexer.createIndex();
                             try {
-                                indexConf.read(configFile);
+                                // Try to read from resources first, then fallback to file system
+                                try {
+                                    indexConf.readFromResource(configFile);
+                                } catch (IOException e) {
+                                    logger.info("Resource not found, trying file system: " + configFile);
+                                    indexConf.read(configFile);
+                                }
                                 String indexName = indexConf.getIndexName();
                                 for (String sitemapUrl : indexConf.getSitemapUrls()) {
                                     logger.info(sitemapUrl);
@@ -284,7 +297,112 @@ public class SauCommands {
                             }
                        });
 
-        
+
+    }
+
+
+    /**  sau:indexWithMapping  */
+    public void sauIndexWithMappingCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("conf")
+                        .option("c")
+                        .longOpt("conf")
+                        .hasArg(true)
+                        .argName("conf")
+                        .desc("Configuration files (comma-separated for multiple configs)")
+                        .required(true)
+                        .build());
+
+        opts.addOption(Option.builder("mapping")
+                        .option("m")
+                        .longOpt("mapping")
+                        .hasArg(true)
+                        .argName("mapping")
+                        .desc("Mapping JSON files (comma-separated, optional)")
+                        .required(false)
+                        .build());
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:indexWithMapping", opts,
+                       "Create ElasticSearch mapping and index from multiple configuration files.",
+                       (CommandLine cl)-> {
+                            logger.info("sau:indexWithMapping");
+                            String configFiles = cl.getOptionValue("conf");
+                            String mappingFiles = cl.getOptionValue("mapping");
+
+                            String[] configs = configFiles.split(",");
+                            String[] mappings = mappingFiles != null ? mappingFiles.split(",") : null;
+
+                            for (int i = 0; i < configs.length; i++) {
+                                String configFile = configs[i].trim();
+                                String mappingFile = mappings != null && i < mappings.length ?
+                                                   mappings[i].trim() : null;
+
+                                logger.info("Processing config: " + configFile +
+                                          (mappingFile != null ? " with mapping: " + mappingFile : ""));
+
+                                IndexConf indexConf = new IndexConf();
+                                Indexer indexer = new Indexer();
+
+                                try {
+                                    // Try to read from resources first, then fallback to file system
+                                    try {
+                                        indexConf.readFromResource(configFile);
+                                    } catch (IOException e) {
+                                        logger.info("Resource not found, trying file system: " + configFile);
+                                        indexConf.read(configFile);
+                                    }
+
+                                    String indexName = indexConf.getIndexName();
+
+                                    // Create mapping if specified
+                                    if (mappingFile != null) {
+                                        logger.info("Creating ElasticSearch mapping for index: " + indexName);
+                                        createElasticSearchMapping(indexName, mappingFile);
+                                    }
+
+                                    // Index documents
+                                    for (String sitemapUrl : indexConf.getSitemapUrls()) {
+                                        logger.info(sitemapUrl);
+                                        Sitemap sitemap = new Sitemap();
+                                        sitemap.parse(sitemapUrl);
+                                        for (SitemapEntry entry : sitemap.getSitemapEntries()) {
+                                            sleep(1000);
+                                            logger.info(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
+                                            indexer.index(entry.getUrl(), indexName);
+                                        }
+                                    }
+                                } catch (IOException e) {
+                                    logger.log(Level.SEVERE, String.format("Can not process %s : %s",
+                                                               configFile, e.getMessage()), e);
+                                }
+                            }
+                       });
+    }
+
+    private void createElasticSearchMapping(String indexName, String mappingFile) {
+        try {
+            // Use curl command to create mapping (similar to shell script)
+            String[] curlCommand = {
+                "curl", "-X", "PUT",
+                "-H", "Content-Type: application/json",
+                "-d", "@" + mappingFile,
+                "http://localhost:9200/" + indexName
+            };
+
+            ProcessBuilder pb = new ProcessBuilder(curlCommand);
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+
+            if (exitCode == 0) {
+                logger.info("Successfully created mapping for index: " + indexName);
+            } else {
+                logger.log(Level.WARNING, "Failed to create mapping for index: " + indexName);
+            }
+
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "Exception while creating mapping for index: " + indexName, e);
+        }
     }
 
 

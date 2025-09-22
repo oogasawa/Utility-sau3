@@ -3,6 +3,8 @@ package com.github.oogasawa.utility.sau3.opensearch;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,6 +57,16 @@ public class IndexConf {
 
     public void read(String file) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            this.read(reader);
+        }
+    }
+
+    public void readFromResource(String resourcePath) throws IOException {
+        try (InputStream is = getClass().getResourceAsStream("/" + resourcePath);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            if (is == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
             this.read(reader);
         }
     }
