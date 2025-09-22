@@ -256,44 +256,72 @@ public class SauCommands {
                         .build());
 
 
-        this.cmdRepos.addCommand("Docusaurus commands", "sau:updateIndex", opts,
+        // Add days option for updateIndex
+        Options updateOpts = new Options();
+        updateOpts.addOption(Option.builder("c")
+                        .longOpt("conf")
+                        .hasArg(true)
+                        .argName("conf")
+                        .desc("Configuration files (comma-separated for multiple configs)")
+                        .required(true)
+                        .build());
+        updateOpts.addOption(Option.builder("d")
+                        .longOpt("days")
+                        .hasArg(true)
+                        .argName("days")
+                        .desc("Number of days to look back for updates (default: 3)")
+                        .required(false)
+                        .build());
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:updateIndex", updateOpts,
                        "Update a full text index of multiple Docusaurus sites.",
                        (CommandLine cl)-> {
                             logger.info("docusaurus:updateIndex");
-                            String configFile = cl.getOptionValue("conf");
+                            String configFiles = cl.getOptionValue("conf");
+                            int daysBack = Integer.parseInt(cl.getOptionValue("days", "3")); // Default: 3 days
+                            logger.info("Looking for updates within last " + daysBack + " days");
 
-                            IndexConf indexConf = new IndexConf();
-                            Indexer indexer = new Indexer();
-                            //indexer.deleteIndexIfExists();
-                            //indexer.createIndex();
-                            try {
-                                // Try to read from resources first, then fallback to file system
+                            String[] configs = configFiles.split(",");
+
+                            for (String configFile : configs) {
+                                configFile = configFile.trim();
+                                logger.info("Processing config: " + configFile);
+
+                                IndexConf indexConf = new IndexConf();
+                                Indexer indexer = new Indexer();
+                                //indexer.deleteIndexIfExists();
+                                //indexer.createIndex();
                                 try {
-                                    indexConf.readFromResource(configFile);
-                                } catch (IOException e) {
-                                    logger.info("Resource not found, trying file system: " + configFile);
-                                    indexConf.read(configFile);
-                                }
-                                String indexName = indexConf.getIndexName();
-                                for (String sitemapUrl : indexConf.getSitemapUrls()) {
-                                    logger.info(sitemapUrl);
-                                    Sitemap sitemap = new Sitemap();
-                                    sitemap.parse(sitemapUrl);
-                                    for (SitemapEntry entry : sitemap.getSitemapEntries()) {
-                                        if (entry.getLastmod() == null) {
-                                            continue;
-                                        }
-                                        else if(DateChecker.isWithinLastNDays(entry.getLastmod(), 3)) {
-                                            sleep(1000);
-                                            logger.info(String.format("%s, %s", entry.getUrl(), entry.getLastmod()));
-                                            indexer.index(entry.getUrl(), indexName);
+                                    // Try to read from resources first, then fallback to file system
+                                    try {
+                                        indexConf.readFromResource(configFile);
+                                    } catch (IOException e) {
+                                        logger.info("Resource not found, trying file system: " + configFile);
+                                        indexConf.read(configFile);
+                                    }
+                                    String indexName = indexConf.getIndexName();
+                                    for (String sitemapUrl : indexConf.getSitemapUrls()) {
+                                        logger.info(sitemapUrl);
+                                        Sitemap sitemap = new Sitemap();
+                                        sitemap.parse(sitemapUrl);
+                                        for (SitemapEntry entry : sitemap.getSitemapEntries()) {
+                                            if (entry.getLastmod() == null) {
+                                                continue;
+                                            }
+                                            else if(DateChecker.isWithinLastNDays(entry.getLastmod(), daysBack)) {
+                                                // Check if document already exists with same timestamp
+                                                if (!indexer.documentExistsWithSameTimestamp(entry.getUrl(), entry.getLastmod(), indexName)) {
+                                                    sleep(1000);
+                                                    logger.info(String.format("Indexing: %s, %s", entry.getUrl(), entry.getLastmod()));
+                                                    indexer.index(entry.getUrl(), indexName);
+                                                }
+                                            }
                                         }
                                     }
+                                } catch (IOException e) {
+                                    logger.log(Level.SEVERE, String.format("Can not process %s : %s",
+                                                               configFile, e.getMessage()), e);
                                 }
-                            } catch (IOException e) {
-                                logger.log(Level.SEVERE, String.format("Can not read %s : %s",
-                                                           configFile, e.getMessage()),
-                                             e);
                             }
                        });
 

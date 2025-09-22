@@ -6,6 +6,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -203,6 +206,14 @@ public class DocusaurusProcessor {
                     destServer.replaceAll("^https?://", "").replaceAll("/$", "") : destServer;
                 com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator.update(
                     serverUrl, finalBaseUrl, projectDir.toFile(), projectName, searchServer);
+
+                // Wait for file system to ensure config file is fully written
+                try {
+                    Thread.sleep(1000); // Wait 1 second for file system sync
+                    System.out.println("DEBUG: Waited for config file sync");
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
 
             // Change to the project directory for building
@@ -233,13 +244,35 @@ public class DocusaurusProcessor {
                 browserListProcess.waitFor();
 
                 // Run yarn build in the project directory
-                runCommandInDirectoryWithFilter(new String[]{"yarn", "run", "build"}, projectDir.toFile());
+                boolean buildSuccess = runCommandInDirectoryWithFilterAndResult(new String[]{"yarn", "run", "build"}, projectDir.toFile());
+                if (!buildSuccess) {
+                    logger.log(Level.WARNING, "Build failed for project: " + projectName + " - continuing with next project");
+                    return; // Skip deployment for this project
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
-            // Handle remote deployment
-            if (destServer != null) {
+            // Check if deployment should be local or remote
+            boolean shouldDeployLocally = (destServer == null) || isLocalAddress(destServer);
+
+            if (shouldDeployLocally) {
+                logger.info("DEBUG: Deploying locally (destServer=" + destServer + ")");
+                // Local deployment
+                if (Files.exists(localDestDir)) {
+                    System.out.println("Removing existing: " + localDestDir);
+                    deleteDirectoryRecursively(localDestDir.toFile());
+                }
+
+                Path buildDir = projectDir.resolve("build");
+                if (Files.exists(buildDir)) {
+                    System.out.println("Copying to: " + localDestDir);
+                    copyDirectory(buildDir, localDestDir);
+                } else {
+                    System.err.println("Build directory not found: " + buildDir);
+                }
+            } else {
+                logger.info("DEBUG: Deploying remotely to " + destServer);
                 // Deploy to remote server
                 Path buildDir = projectDir.resolve("build");
                 if (Files.exists(buildDir)) {
@@ -309,20 +342,6 @@ public class DocusaurusProcessor {
                     }
 
                     System.out.println("Remote deployment completed successfully!");
-                } else {
-                    System.err.println("Build directory not found: " + buildDir);
-                }
-            } else {
-                // Local deployment
-                if (Files.exists(localDestDir)) {
-                    System.out.println("Removing existing: " + localDestDir);
-                    deleteDirectoryRecursively(localDestDir.toFile());
-                }
-
-                Path buildDir = projectDir.resolve("build");
-                if (Files.exists(buildDir)) {
-                    System.out.println("Copying to: " + localDestDir);
-                    copyDirectory(buildDir, localDestDir);
                 } else {
                     System.err.println("Build directory not found: " + buildDir);
                 }
@@ -830,6 +849,45 @@ public class DocusaurusProcessor {
     }
 
     /**
+     * Check if the given server address is a local address.
+     */
+    private static boolean isLocalAddress(String serverAddress) {
+        try {
+            // Clean up the server address (remove protocol and trailing slashes)
+            String cleanAddress = serverAddress.replaceAll("^https?://", "").replaceAll("/$", "");
+
+            // Check common local addresses
+            if (cleanAddress.equals("localhost") ||
+                cleanAddress.equals("127.0.0.1") ||
+                cleanAddress.equals("0.0.0.0")) {
+                logger.info("DEBUG: " + serverAddress + " is a standard local address");
+                return true;
+            }
+
+            // Get all local network interfaces
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                Enumeration<InetAddress> addresses = ni.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
+                    String hostAddress = addr.getHostAddress();
+                    if (hostAddress.equals(cleanAddress)) {
+                        logger.info("DEBUG: " + serverAddress + " matches local interface: " + hostAddress);
+                        return true;
+                    }
+                }
+            }
+
+            logger.info("DEBUG: " + serverAddress + " is NOT a local address");
+            return false;
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to check if address is local: " + serverAddress, e);
+            return false;
+        }
+    }
+
+    /**
      * Test SSH connection to the remote server.
      */
     private static boolean testSSHConnection(String server) {
@@ -878,6 +936,51 @@ public class DocusaurusProcessor {
         return runCommandWithResult(new String[]{"ssh", "-o", "BatchMode=yes",
                                                 "-o", "StrictHostKeyChecking=no",
                                                 server, "rm", "-rf", remotePath + "/*"});
+    }
+
+    /**
+     * Run a shell command in a specific directory with output filtering and return success status.
+     */
+    private static boolean runCommandInDirectoryWithFilterAndResult(String[] command, File directory) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.directory(directory);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            boolean insideImportantBlock = false;
+
+            while ((line = reader.readLine()) != null) {
+                // Detect start or end of a block with many dashes or centered title
+                if (line.matches("-{60,}") || line.trim().matches(".*Update available.*")) {
+                    insideImportantBlock = true;
+                    System.out.println(line);
+                    continue;
+                }
+
+                else if (insideImportantBlock) {
+                    System.out.println(line);
+                    // End condition: when consecutive empty lines appear or the output transitions to a different section
+                    if (line.matches("-{60,}")) {
+                        insideImportantBlock = false;
+                    }
+                    continue;
+                }
+
+                // fallback: match by keywords
+                else if (shouldDisplayLine(line)) {
+                    System.out.println(line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "Command execution failed: " + String.join(" ", command), e);
+            return false;
+        }
     }
 
     /**

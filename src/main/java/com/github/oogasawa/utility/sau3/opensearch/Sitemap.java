@@ -13,6 +13,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.HttpURLConnection;
+import java.util.Base64;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -47,10 +49,10 @@ public class Sitemap {
         try {
 
             URL sitemapUrl = new URI(urlStrOfSitemapXml).toURL();
-            try (InputStream in = sitemapUrl.openStream()) {
-                parse(in); 
-            } 
-                        
+            try (InputStream in = openStreamWithAuth(sitemapUrl)) {
+                parse(in);
+            }
+
         } catch (FileNotFoundException
                  | URISyntaxException
                  | MalformedURLException e) {
@@ -58,8 +60,30 @@ public class Sitemap {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "General IOException", e);
         }
-        
 
+
+    }
+
+    /**
+     * Opens an InputStream with BASIC authentication support
+     *
+     * @param url URL to open
+     * @return InputStream with authentication headers
+     * @throws IOException if connection fails
+     */
+    private InputStream openStreamWithAuth(URL url) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        // Add BASIC authentication for 133.39.114.45
+        if (url.getHost().equals("133.39.114.45")) {
+            String username = "nigsc";
+            String password = "testnigsc";
+            String auth = username + ":" + password;
+            String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+            connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
+        }
+
+        return connection.getInputStream();
     }
 
 

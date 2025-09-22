@@ -24,6 +24,8 @@ import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.get.GetResponse;
 import org.opensearch.client.RequestOptions;
 
 
@@ -140,13 +142,24 @@ public class Indexer {
     public void fetchHtml(String url) {
 
         try {
-            Connection.Response response = Jsoup.connect(url).userAgent(
+            Connection connection = Jsoup.connect(url).userAgent(
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
                     .referrer("https://www.google.com/")
                     .header("Accept",
                             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                     .header("Accept-Language", "ja,en-US;q=0.9,en;q=0.8").timeout(10000)
-                    .followRedirects(true).method(Connection.Method.GET).execute();
+                    .followRedirects(true).method(Connection.Method.GET);
+
+            // Add BASIC authentication for 133.39.114.45
+            if (url.contains("133.39.114.45")) {
+                String username = "nigsc";
+                String password = "testnigsc";
+                String auth = username + ":" + password;
+                String encodedAuth = java.util.Base64.getEncoder().encodeToString(auth.getBytes());
+                connection.header("Authorization", "Basic " + encodedAuth);
+            }
+
+            Connection.Response response = connection.execute();
 
             int statusCode = response.statusCode();
             if (statusCode != 200) {
@@ -189,8 +202,9 @@ public class Indexer {
         jsonMap.put("title", this.title);
         jsonMap.put("text", this.text);
         jsonMap.put("url", this.url);
+        jsonMap.put("lastmod", this.lastmod); // Add lastmod to indexed document
 
-        
+
         ObjectMapper mapper = new ObjectMapper();
         String jsonString = mapper.writeValueAsString(jsonMap);
 
@@ -233,7 +247,50 @@ public class Indexer {
         }
     }
 
-    
+    /**
+     * Check if a document exists in the index with the same URL and lastmod date.
+     * This is used for incremental updates to avoid re-indexing unchanged documents.
+     */
+    public boolean documentExistsWithSameTimestamp(String url, String lastmod, String indexName) {
+        RestHighLevelClient client = new RestHighLevelClient(
+                RestClient.builder(new HttpHost("localhost", 9200, "http")));
+
+        try {
+            String documentId = calculateMD5(url);
+            GetRequest getRequest = new GetRequest(indexName, documentId);
+
+            if (!client.exists(getRequest, RequestOptions.DEFAULT)) {
+                logger.info("Document does not exist in index: " + url);
+                return false;
+            }
+
+            GetResponse getResponse = client.get(getRequest, RequestOptions.DEFAULT);
+            if (getResponse.isExists()) {
+                Map<String, Object> sourceAsMap = getResponse.getSourceAsMap();
+                String existingLastmod = (String) sourceAsMap.get("lastmod");
+
+                if (lastmod != null && lastmod.equals(existingLastmod)) {
+                    logger.info("Document exists with same timestamp, skipping: " + url);
+                    return true;
+                } else {
+                    logger.info("Document exists but timestamp differs, will update: " + url + " (existing: " + existingLastmod + ", new: " + lastmod + ")");
+                    return false;
+                }
+            }
+            return false;
+        } catch (IOException e) {
+            logger.log(Level.WARNING, "Error checking document existence for: " + url, e);
+            return false; // If we can't check, assume it doesn't exist and proceed with indexing
+        } finally {
+            try {
+                client.close();
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Failed to close the client.", e);
+            }
+        }
+    }
+
+
 }
 
     
