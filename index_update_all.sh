@@ -1,11 +1,5 @@
 #!/bin/bash
 
-
-# Japanese
-curl -X PUT -H "Content-Type: application/json" -d @docusaurus_ja_mapping.json http://localhost:9200/docusaurus_ja | jq .
-sau3.java sau:updateIndex -c docusaurus_ja.conf
-
-# English
-curl -X PUT -H "Content-Type: application/json" -d @docusaurus_en_mapping.json http://localhost:9200/docusaurus_en | jq .
-sau3.java sau:updateIndex -c docusaurus_en.conf
+# Update both Japanese and English indices with optimized incremental indexing
+java -jar target/Utility-sau3-3.0.1.jar sau:updateIndex -c w206_ja.conf,w206_en.conf --days 3
 

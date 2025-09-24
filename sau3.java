@@ -5,7 +5,7 @@ import java.net.URLClassLoader;
 
 class sau3 {
 
-  static String fatJar = "/.m2/repository/com/github/oogasawa/Utility-sau3/2.2.0/Utility-sau3-2.2.0.jar";
+  static String fatJar = "/.m2/repository/com/github/oogasawa/Utility-sau3/3.0.1/Utility-sau3-3.0.1.jar";
 
   public static void main(String[] args) throws Exception {
     // Get the user's home directory from Java system properties
