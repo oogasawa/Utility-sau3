@@ -107,7 +107,7 @@
         <dependency>
             <groupId>com.github.oogasawa</groupId>
             <artifactId>Utility-cli</artifactId>
-            <version>4.0.0</version>
+            <version>4.2.0</version>
         </dependency>
 
         <dependency>

@@ -1,6 +1,7 @@
 package com.github.oogasawa.utility.sau3;
 
 import com.github.oogasawa.utility.cli.CommandRepository;
+import com.github.oogasawa.utility.cli.UtilityCliHelpFormatterBuilder;
 import com.github.oogasawa.utility.sau3.ex.ExCommands;
 import com.github.oogasawa.utility.sau3.gemini.GeminiCommands;
 import com.github.oogasawa.utility.sau3.git.GitCommands;
@@ -18,6 +19,16 @@ public class App
 
     String      synopsis = "java -jar Utility-sau3-VERSION.jar <command> <options>";
     CommandRepository cmdRepos     = new CommandRepository();
+
+
+    public App() {
+        UtilityCliHelpFormatterBuilder defaults = new UtilityCliHelpFormatterBuilder()
+                .addUsageSection("Usage")
+                .addCommandDescriptionSection("Description")
+                .addOptionsSection("Options")
+                .width(96);
+        this.cmdRepos.configureDefaultHelpFormatter(defaults);
+    }
 
 
     
@@ -40,7 +51,15 @@ public class App
             CommandLine cl = app.cmdRepos.parse(args);
             String command = app.cmdRepos.getGivenCommand();
             
-            if (command == null) {
+            if (app.cmdRepos.isHelpRequested()) {
+                if (app.cmdRepos.hasCommand(command)) {
+                    app.cmdRepos.printCommandHelp(command);
+                } else {
+                    System.err.println("The specified command is not available: " + app.cmdRepos.getGivenCommand());
+                    app.cmdRepos.printCommandList(app.synopsis);
+                }
+            }
+            else if (command == null) {
                 app.cmdRepos.printCommandList(app.synopsis);
             }
             else if (app.cmdRepos.hasCommand(command)) {

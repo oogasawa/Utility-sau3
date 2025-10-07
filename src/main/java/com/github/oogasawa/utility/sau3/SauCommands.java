@@ -1,9 +1,11 @@
 package com.github.oogasawa.utility.sau3;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.github.oogasawa.utility.cli.CommandRepository;
+import com.github.oogasawa.utility.cli.UtilityCliHelpFormatterBuilder;
 import com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator;
 import com.github.oogasawa.utility.sau3.opensearch.DateChecker;
 import com.github.oogasawa.utility.sau3.opensearch.IndexConf;
@@ -54,6 +56,15 @@ public class SauCommands {
                 (CommandLine cl) -> {
                     DocusaurusProcessor.build();
                 });
+
+        registerHelp("sau:build",
+                java.util.List.of("""
+Build the Docusaurus project with filtered output. Noise from npm is filtered so you only see warnings and errors.
+"""),
+                java.util.List.of("""
+sau3.java sau:build
+  Run from the project root to generate production assets under the build/ directory.
+"""));
 
     }    
 
@@ -117,6 +128,38 @@ public class SauCommands {
                     DocusaurusProcessor.deploy(dest, destServer, destDir, sourceDir, baseUrl);
                 });
 
+        registerHelp("sau:deploy",
+                java.util.List.of("""
+Build the Docusaurus project on the local workstation and optionally push it to a remote server.
+""",
+                        """
+Common flags:
+  - --dest: parent directory for local deployment (defaults to ~/public_html).
+  - --destServer: remote server in user@host form; omit to deploy locally.
+  - --destDir: document root on the remote server (defaults to $HOME/public_html).
+  - --sourceDir: Docusaurus project directory (defaults to current directory).
+  - --baseUrl: base URL injected into docusaurus.config.js before building.
+"""),
+                java.util.List.of("""
+sau3.java sau:deploy --destServer web-admin@web1.example.org --destDir /var/www/html/docs \\n  --sourceDir ~/works/docs/site --baseUrl /docs/doc_Analyst001/en/
+"""));
+
+        registerHelp("sau:deploy",
+                java.util.List.of("""
+Build the Docusaurus project on the local workstation and optionally push it to a remote server.
+""",
+                        """
+Common flags:
+  - --dest: parent directory for local deployment (defaults to ~/public_html).
+  - --destServer: remote server in user@host form; omit to deploy locally.
+  - --destDir: document root on the remote server (defaults to $HOME/public_html).
+  - --sourceDir: Docusaurus project directory (defaults to current directory).
+  - --baseUrl: base URL injected into docusaurus.config.js before building.
+"""),
+                java.util.List.of("""
+sau3.java sau:deploy --destServer web-admin@web1.example.org --destDir /var/www/html/docs \\n  --sourceDir ~/works/docs/site --baseUrl /docs/doc_Analyst001/en/
+"""));
+
     }
 
 
@@ -168,6 +211,14 @@ public class SauCommands {
 
                     DocusaurusProcessor.batchDeploy(configFile, destServer, baseDir, skipGitPull);
                 });
+
+        registerHelp("sau:batchDeploy",
+                java.util.List.of("""
+Batch deploy multiple Docusaurus projects based on a configuration file.
+"""),
+                java.util.List.of("""
+sau3.java sau:batchDeploy --conf docusaurus_en.conf --baseDir ~/works/docs \\n  --destServer web-admin@web1.example.org
+"""));
 
     }
 
@@ -223,6 +274,15 @@ public class SauCommands {
                             }
                        });
 
+        registerHelp("sau:index",
+                java.util.List.of("""
+Create a full-text index by crawling the sitemaps listed in a configuration file.
+"""),
+                java.util.List.of("""
+sau3.java sau:index --conf docusaurus_ja.conf
+  Reads each sitemap URL in the config and indexes the referenced pages into OpenSearch.
+"""));
+
     }
 
     
@@ -235,6 +295,15 @@ public class SauCommands {
                 (CommandLine cl) -> {
                     DocusaurusProcessor.startDocusaurus();
                 });
+
+        registerHelp("sau:start",
+                java.util.List.of("""
+Start the Docusaurus development server with filtered output and automatic port conflict handling.
+"""),
+                java.util.List.of("""
+sau3.java sau:start
+  Launches npm run start -- --port 3000 with automatic port retry logic and log filtering.
+"""));
 
     }    
 
@@ -325,6 +394,14 @@ public class SauCommands {
                             }
                        });
 
+        registerHelp("sau:updateIndex",
+                java.util.List.of("""
+Update a full-text index by reindexing pages that changed recently.
+"""),
+                java.util.List.of("""
+sau3.java sau:updateIndex --conf docusaurus_en.conf --days 7
+  Reindexes pages modified within the last 7 days for each site in the configuration file.
+"""));
 
     }
 
@@ -406,6 +483,15 @@ public class SauCommands {
                                 }
                             }
                        });
+
+        registerHelp("sau:indexWithMapping",
+                java.util.List.of("""
+Create ElasticSearch mapping and index from multiple configuration files.
+"""),
+                java.util.List.of("""
+sau3.java sau:indexWithMapping --conf configs/docs.conf,configs/blog.conf --mapping mappings/docs.json,mappings/blog.json
+  Applies each mapping file before indexing the corresponding site content into ElasticSearch.
+"""));
     }
 
     private void createElasticSearchMapping(String indexName, String mappingFile) {
@@ -440,6 +526,24 @@ public class SauCommands {
 
 
     
+    private void registerHelp(String command, List<String> descriptionBlocks, List<String> exampleBlocks) {
+        UtilityCliHelpFormatterBuilder builder = new UtilityCliHelpFormatterBuilder()
+                .clearSections()
+                .addUsageSection("Usage");
+
+        if (descriptionBlocks != null && !descriptionBlocks.isEmpty()) {
+            builder.addCustomSection("Description", descriptionBlocks);
+        }
+
+        if (exampleBlocks != null && !exampleBlocks.isEmpty()) {
+            builder.addCustomSection("Examples", exampleBlocks);
+        }
+
+        builder.addOptionsSection("Options");
+        this.cmdRepos.configureCommandHelpFormatter(command, builder);
+    }
+
+
     public void sleep(int msec) {
         try {
             Thread.sleep(msec);
