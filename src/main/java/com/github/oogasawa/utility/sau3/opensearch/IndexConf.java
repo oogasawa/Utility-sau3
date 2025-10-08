@@ -55,12 +55,49 @@ public class IndexConf {
     }
 
 
+    /**
+     * Read configuration from the specified path.
+     * First tries to read from filesystem, then falls back to resources.
+     *
+     * @param configPath Path to configuration file (filesystem path or resource name)
+     * @throws IOException if file cannot be read from either location
+     */
+    public void readConfigFile(String configPath) throws IOException {
+        // Try filesystem first
+        java.nio.file.Path path = java.nio.file.Paths.get(configPath);
+        if (java.nio.file.Files.exists(path)) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(configPath))) {
+                this.read(reader);
+                return;
+            }
+        }
+
+        // Fallback to resources
+        try (InputStream is = getClass().getResourceAsStream("/" + configPath);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            if (is == null) {
+                throw new IOException("Configuration file not found in filesystem or resources: " + configPath);
+            }
+            this.read(reader);
+        }
+    }
+
+    /**
+     * Read configuration from filesystem.
+     * @deprecated Use readConfigFile() instead for automatic filesystem/resource handling
+     */
+    @Deprecated
     public void read(String file) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             this.read(reader);
         }
     }
 
+    /**
+     * Read configuration from resources.
+     * @deprecated Use readConfigFile() instead for automatic filesystem/resource handling
+     */
+    @Deprecated
     public void readFromResource(String resourcePath) throws IOException {
         try (InputStream is = getClass().getResourceAsStream("/" + resourcePath);
              BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {

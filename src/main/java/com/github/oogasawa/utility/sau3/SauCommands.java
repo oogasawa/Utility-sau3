@@ -130,34 +130,49 @@ sau3.java sau:build
 
         registerHelp("sau:deploy",
                 java.util.List.of("""
-Build the Docusaurus project on the local workstation and optionally push it to a remote server.
-""",
-                        """
-Common flags:
-  - --dest: parent directory for local deployment (defaults to ~/public_html).
-  - --destServer: remote server in user@host form; omit to deploy locally.
-  - --destDir: document root on the remote server (defaults to $HOME/public_html).
-  - --sourceDir: Docusaurus project directory (defaults to current directory).
-  - --baseUrl: base URL injected into docusaurus.config.js before building.
-"""),
-                java.util.List.of("""
-sau3.java sau:deploy --destServer web-admin@web1.example.org --destDir /var/www/html/docs \\n  --sourceDir ~/works/docs/site --baseUrl /docs/doc_Analyst001/en/
-"""));
+Build the Docusaurus project on the local workstation and optionally deploy the build output to the web publication directory on either the build server or a remote server.
 
-        registerHelp("sau:deploy",
-                java.util.List.of("""
-Build the Docusaurus project on the local workstation and optionally push it to a remote server.
-""",
-                        """
-Common flags:
-  - --dest: parent directory for local deployment (defaults to ~/public_html).
-  - --destServer: remote server in user@host form; omit to deploy locally.
-  - --destDir: document root on the remote server (defaults to $HOME/public_html).
-  - --sourceDir: Docusaurus project directory (defaults to current directory).
-  - --baseUrl: base URL injected into docusaurus.config.js before building.
+Docusaurus outputs a large amount of build progress logs, which can slow down execution in environments like Emacs shell-mode. To prevent this, the command filters output to show only errors and warnings.
 """),
                 java.util.List.of("""
-sau3.java sau:deploy --destServer web-admin@web1.example.org --destDir /var/www/html/docs \\n  --sourceDir ~/works/docs/site --baseUrl /docs/doc_Analyst001/en/
+# Example 1: Local deployment to /var/www/html
+# Build the Docusaurus project and deploy to the system web directory.
+# If a project already exists in the web publication directory, it will be deleted and replaced.
+
+java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
+    --sourceDir ~/works/doc_Infra001 \\
+    --baseUrl / \\
+    --dest /var/www/html
+
+# After deployment, the files will be directly in /var/www/html:
+# $ ls /var/www/html
+# 404.html  application  blog  feed-en.json  guides  index.html  ...
+""",
+                        """
+# Example 2: Local deployment to user's public_html directory
+# Deploy to the user's public_html with a custom baseUrl.
+# If run from a Docusaurus project directory, --sourceDir defaults to current directory.
+# --dest defaults to ~/public_html.
+
+java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
+    --sourceDir ~/works/doc_Infra001 \\
+    --baseUrl "/~oogasawa/doc_Infra001/" \\
+    --dest $HOME/public_html
+
+# Shorter version when running from the project directory:
+java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
+    --baseUrl "/~$USER/doc_Infra001/"
+""",
+                        """
+# Example 3: Remote deployment via SSH
+# Build on one machine and deploy to a remote server's web directory.
+# If a project already exists on the remote server, it will be deleted and replaced.
+
+java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
+    --destServer web-admin@192.168.12.1 \\
+    --destDir /var/www/html \\
+    --sourceDir ~/works/doc_Infra001 \\
+    --baseUrl /~$USER/doc_Infra001/
 """));
 
     }
@@ -215,9 +230,85 @@ sau3.java sau:deploy --destServer web-admin@web1.example.org --destDir /var/www/
         registerHelp("sau:batchDeploy",
                 java.util.List.of("""
 Batch deploy multiple Docusaurus projects based on a configuration file.
+
+All Docusaurus projects to be deployed are assumed to be located under a single base directory.
+
+Configuration File:
+The configuration file should be located on the filesystem and specified via the --conf option.
+Supported path formats: absolute (/path/to/file.conf), relative (./file.conf), or home directory (~/.conf).
+
+Configuration File Format:
+  [index]
+  docusaurus_ja
+
+  [sitemap urls]
+  http://localhost/~oogasawa/doc_Analyst001/sitemap.xml
+  http://localhost/~oogasawa/doc_CPP001/sitemap.xml
+  http://localhost/~oogasawa/doc_DBMS001/sitemap.xml
+
+The configuration file contains a list of sitemap URLs under the [sitemap urls] section.
+Project names are extracted from these URLs, and each project is built and deployed.
+
+Deployment Process:
+For each project, the command:
+  1. Optionally runs git pull (unless --skipGitPull is specified)
+  2. Builds the Docusaurus project
+  3. Deploys to the specified destination (local or remote)
+
+If a project directory doesn't exist locally, it will attempt to clone it from GitHub.
 """),
                 java.util.List.of("""
-sau3.java sau:batchDeploy --conf docusaurus_en.conf --baseDir ~/works/docs \\n  --destServer web-admin@web1.example.org
+# Example 1: Basic batch deployment
+# Deploy all projects listed in the configuration file to local public_html directories.
+
+java -jar Utility-sau3-<VERSION>.jar sau:batchDeploy \\
+    --conf ~/config/docusaurus_ja.conf \\
+    --baseDir ~/works/docs
+
+# This will deploy each project in the configuration file:
+# - doc_Analyst001 → ~/public_html/doc_Analyst001
+# - doc_CPP001 → ~/public_html/doc_CPP001
+# - etc.
+""",
+                        """
+# Example 2: Batch deploy to remote server
+# Deploy all projects to a remote server via SSH.
+# Each project will be deployed to its corresponding directory on the remote server.
+
+java -jar Utility-sau3-<VERSION>.jar sau:batchDeploy \\
+    --conf ~/config/docusaurus_ja.conf \\
+    --baseDir ~/works/docs \\
+    --destServer web-admin@192.168.12.1
+
+# Each project will be deployed to the remote server's ~/public_html/ directory.
+""",
+                        """
+# Example 3: Batch deploy without git pull
+# Skip the git pull step for all projects (useful when testing local changes).
+
+java -jar Utility-sau3-<VERSION>.jar sau:batchDeploy \\
+    --conf ~/config/docusaurus_en.conf \\
+    --baseDir ~/works/docs \\
+    --skipGitPull
+""",
+                        """
+# Example 4: Using different path formats
+# Configuration files can be specified using absolute, relative, or home directory paths.
+
+# Absolute path
+java -jar Utility-sau3-<VERSION>.jar sau:batchDeploy \\
+    --conf /etc/docusaurus/my-projects.conf \\
+    --baseDir ~/works/docs
+
+# Relative path
+java -jar Utility-sau3-<VERSION>.jar sau:batchDeploy \\
+    --conf ./config/my-projects.conf \\
+    --baseDir ~/works/docs
+
+# Home directory path
+java -jar Utility-sau3-<VERSION>.jar sau:batchDeploy \\
+    --conf ~/my-projects.conf \\
+    --baseDir ~/works/docs
 """));
 
     }
@@ -249,13 +340,7 @@ sau3.java sau:batchDeploy --conf docusaurus_en.conf --baseDir ~/works/docs \\n  
                             //indexer.deleteIndexIfExists();
                             //indexer.createIndex();
                             try {
-                                // Try to read from resources first, then fallback to file system
-                                try {
-                                    indexConf.readFromResource(configFile);
-                                } catch (IOException e) {
-                                    logger.info("Resource not found, trying file system: " + configFile);
-                                    indexConf.read(configFile);
-                                }
+                                indexConf.readConfigFile(configFile);
                                 String indexName = indexConf.getIndexName();
                                 for (String sitemapUrl : indexConf.getSitemapUrls()) {
                                     logger.info(sitemapUrl);
@@ -361,13 +446,7 @@ sau3.java sau:start
                                 //indexer.deleteIndexIfExists();
                                 //indexer.createIndex();
                                 try {
-                                    // Try to read from resources first, then fallback to file system
-                                    try {
-                                        indexConf.readFromResource(configFile);
-                                    } catch (IOException e) {
-                                        logger.info("Resource not found, trying file system: " + configFile);
-                                        indexConf.read(configFile);
-                                    }
+                                    indexConf.readConfigFile(configFile);
                                     String indexName = indexConf.getIndexName();
                                     for (String sitemapUrl : indexConf.getSitemapUrls()) {
                                         logger.info(sitemapUrl);
@@ -450,13 +529,7 @@ sau3.java sau:updateIndex --conf docusaurus_en.conf --days 7
                                 Indexer indexer = new Indexer();
 
                                 try {
-                                    // Try to read from resources first, then fallback to file system
-                                    try {
-                                        indexConf.readFromResource(configFile);
-                                    } catch (IOException e) {
-                                        logger.info("Resource not found, trying file system: " + configFile);
-                                        indexConf.read(configFile);
-                                    }
+                                    indexConf.readConfigFile(configFile);
 
                                     String indexName = indexConf.getIndexName();
 

@@ -217,40 +217,48 @@ public class DocusaurusProcessor {
             }
 
             // Change to the project directory for building
-            try {
-                // Debug: Verify config file before build
-                if (destServer != null) {
-                    System.out.println("DEBUG: Verifying config before build...");
-                    Path configFile = projectDir.resolve("docusaurus.config.js");
-                    if (Files.exists(configFile)) {
-                        try {
-                            java.util.List<String> lines = Files.readAllLines(configFile);
-                            for (int i = 0; i < lines.size(); i++) {
-                                String line = lines.get(i);
-                                if (line.contains("url:") || line.contains("baseUrl:")) {
-                                    System.out.println("DEBUG: Config line " + (i+1) + ": " + line.trim());
+            // Skip build if SKIP_DOCUSAURUS_BUILD environment variable is set (for testing)
+            boolean skipBuild = "true".equals(System.getenv("SKIP_DOCUSAURUS_BUILD"));
+            Path buildDir = projectDir.resolve("build");
+
+            if (skipBuild && Files.exists(buildDir)) {
+                System.out.println("Skipping Docusaurus build (using existing build directory)");
+            } else {
+                try {
+                    // Debug: Verify config file before build
+                    if (destServer != null) {
+                        System.out.println("DEBUG: Verifying config before build...");
+                        Path configFile = projectDir.resolve("docusaurus.config.js");
+                        if (Files.exists(configFile)) {
+                            try {
+                                java.util.List<String> lines = Files.readAllLines(configFile);
+                                for (int i = 0; i < lines.size(); i++) {
+                                    String line = lines.get(i);
+                                    if (line.contains("url:") || line.contains("baseUrl:")) {
+                                        System.out.println("DEBUG: Config line " + (i+1) + ": " + line.trim());
+                                    }
                                 }
+                            } catch (Exception e) {
+                                System.err.println("DEBUG: Failed to read config file: " + e.getMessage());
                             }
-                        } catch (Exception e) {
-                            System.err.println("DEBUG: Failed to read config file: " + e.getMessage());
                         }
                     }
-                }
 
-                ProcessBuilder browserListBuilder = new ProcessBuilder("npx", "browserslist@latest", "--update-db");
-                browserListBuilder.directory(projectDir.toFile());
-                browserListBuilder.inheritIO();
-                Process browserListProcess = browserListBuilder.start();
-                browserListProcess.waitFor();
+                    ProcessBuilder browserListBuilder = new ProcessBuilder("npx", "browserslist@latest", "--update-db");
+                    browserListBuilder.directory(projectDir.toFile());
+                    browserListBuilder.inheritIO();
+                    Process browserListProcess = browserListBuilder.start();
+                    browserListProcess.waitFor();
 
-                // Run yarn build in the project directory
-                boolean buildSuccess = runCommandInDirectoryWithFilterAndResult(new String[]{"yarn", "run", "build"}, projectDir.toFile());
-                if (!buildSuccess) {
-                    logger.log(Level.WARNING, "Build failed for project: " + projectName + " - continuing with next project");
-                    return; // Skip deployment for this project
+                    // Run yarn build in the project directory
+                    boolean buildSuccess = runCommandInDirectoryWithFilterAndResult(new String[]{"yarn", "run", "build"}, projectDir.toFile());
+                    if (!buildSuccess) {
+                        logger.log(Level.WARNING, "Build failed for project: " + projectName + " - continuing with next project");
+                        return; // Skip deployment for this project
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
 
             // Check if deployment should be local or remote
@@ -264,7 +272,6 @@ public class DocusaurusProcessor {
                     deleteDirectoryRecursively(localDestDir.toFile());
                 }
 
-                Path buildDir = projectDir.resolve("build");
                 if (Files.exists(buildDir)) {
                     System.out.println("Copying to: " + localDestDir);
                     copyDirectory(buildDir, localDestDir);
@@ -274,7 +281,6 @@ public class DocusaurusProcessor {
             } else {
                 logger.info("DEBUG: Deploying remotely to " + destServer);
                 // Deploy to remote server
-                Path buildDir = projectDir.resolve("build");
                 if (Files.exists(buildDir)) {
                     // Use destDir if specified, otherwise use default $HOME/public_html
                     String effectiveDestDir = destDir != null ? destDir : "$HOME/public_html";
@@ -454,31 +460,31 @@ public class DocusaurusProcessor {
     private static java.util.List<String> readProjectListFromConfig(String configFile) throws java.io.IOException {
         java.util.List<String> projectNames = new java.util.ArrayList<>();
 
-        logger.info("DEBUG: Attempting to read config file from resources: " + configFile);
+        // Try to read from filesystem first (command-line specified path)
+        Path configPath = Paths.get(configFile);
+        if (Files.exists(configPath)) {
+            logger.info("Reading config file from filesystem: " + configPath.toAbsolutePath());
+            java.util.List<String> lines = Files.readAllLines(configPath);
+            logger.info("Read " + lines.size() + " lines from filesystem config file");
+            return parseConfigLines(lines, projectNames);
+        }
 
-        // Try to read from resources first
+        // Fallback to resources (inside JAR)
+        logger.info("Config file not found in filesystem, trying resources: " + configFile);
         try (java.io.InputStream is = DocusaurusProcessor.class.getResourceAsStream("/" + configFile);
              java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is))) {
 
             if (is == null) {
-                // Fallback to filesystem
-                logger.info("DEBUG: Resource not found, falling back to filesystem: " + configFile);
-                Path configPath = Paths.get(configFile);
-                if (!Files.exists(configPath)) {
-                    throw new java.io.IOException("Configuration file not found: " + configFile);
-                }
-                java.util.List<String> lines = Files.readAllLines(configPath);
-                logger.info("DEBUG: Read " + lines.size() + " lines from filesystem config file");
-                return parseConfigLines(lines, projectNames);
+                throw new java.io.IOException("Configuration file not found in filesystem or resources: " + configFile);
             }
 
-            logger.info("DEBUG: Successfully opened config file from resources");
+            logger.info("Successfully opened config file from resources");
             java.util.List<String> lines = new java.util.ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
                 lines.add(line);
             }
-            logger.info("DEBUG: Read " + lines.size() + " lines from resource config file");
+            logger.info("Read " + lines.size() + " lines from resource config file");
             return parseConfigLines(lines, projectNames);
         }
     }
