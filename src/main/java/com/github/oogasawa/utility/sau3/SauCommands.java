@@ -115,6 +115,14 @@ sau3.java sau:build
                        .required(false)
                        .build());
 
+        opts.addOption(Option.builder("url")
+                       .longOpt("url")
+                       .hasArg(true)
+                       .argName("url")
+                       .desc("Full URL for Docusaurus site (e.g. http://192.168.1.1/, https://example.com/; default: auto-generated from destServer)")
+                       .required(false)
+                       .build());
+
 
         this.cmdRepos.addCommand("Docusaurus commands", "sau:deploy", opts,
                 "Build the Docusaurus project with filtered output and deploy it to the public_html directory.",
@@ -125,7 +133,8 @@ sau3.java sau:build
                     String destDir = cl.getOptionValue("destDir");
                     String sourceDir = cl.getOptionValue("sourceDir", System.getProperty("user.dir"));
                     String baseUrl = cl.getOptionValue("baseUrl");
-                    DocusaurusProcessor.deploy(dest, destServer, destDir, sourceDir, baseUrl);
+                    String url = cl.getOptionValue("url");
+                    DocusaurusProcessor.deploy(dest, destServer, destDir, sourceDir, baseUrl, url);
                 });
 
         registerHelp("sau:deploy",
@@ -173,6 +182,28 @@ java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
     --destDir /var/www/html \\
     --sourceDir ~/works/doc_Infra001 \\
     --baseUrl /~$USER/doc_Infra001/
+""",
+                        """
+# Example 4: Remote deployment with explicit URL (HTTP or HTTPS)
+# Use --url to explicitly specify the full URL including protocol.
+# This is useful when you need to use HTTP instead of the default HTTPS,
+# or when deploying to a server with a specific domain name.
+
+# Using HTTP protocol:
+java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
+    --destServer web-admin@192.168.12.1 \\
+    --destDir /var/www/html \\
+    --sourceDir ~/works/doc_Infra001 \\
+    --url http://192.168.12.1 \\
+    --baseUrl /~$USER/doc_Infra001/
+
+# Using HTTPS protocol:
+java -jar Utility-sau3-<VERSION>.jar sau:deploy \\
+    --destServer web-admin@example.com \\
+    --destDir /var/www/html \\
+    --sourceDir ~/works/doc_Infra001 \\
+    --url https://example.com \\
+    --baseUrl /docs/
 """));
 
     }

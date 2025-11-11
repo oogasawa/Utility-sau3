@@ -154,18 +154,18 @@ public class DocusaurusProcessor {
      * @see #runCommandAndFilterOutput(String[]) for output filtering behavior
      */
     public static void deploy(String dest) {
-        deploy(dest, null, null, null, null);
+        deploy(dest, null, null, null, null, null);
     }
 
     public static void deploy(String dest, String destServer, String destDir) {
-        deploy(dest, destServer, destDir, null, null);
+        deploy(dest, destServer, destDir, null, null, null);
     }
 
     public static void deploy(String dest, String destServer, String destDir, String sourceDir) {
-        deploy(dest, destServer, destDir, sourceDir, null);
+        deploy(dest, destServer, destDir, sourceDir, null, null);
     }
 
-    public static void deploy(String dest, String destServer, String destDir, String sourceDir, String baseUrl) {
+    public static void deploy(String dest, String destServer, String destDir, String sourceDir, String baseUrl, String url) {
         try {
             // Use sourceDir if specified, otherwise use current directory
             Path projectDir = sourceDir != null ? Paths.get(sourceDir).toAbsolutePath() : Paths.get("").toAbsolutePath();
@@ -181,9 +181,19 @@ public class DocusaurusProcessor {
 
             System.out.println("Building project: " + projectName + " (source: " + projectDir + ")");
 
-            // Update docusaurus config BEFORE building if destServer is specified
-            if (destServer != null) {
-                String serverUrl = destServer.startsWith("http") ? destServer : "http://" + destServer + "/";
+            // Update docusaurus config BEFORE building if destServer or url is specified
+            if (destServer != null || url != null) {
+                String serverUrl;
+
+                // Use provided url if specified, otherwise generate from destServer
+                if (url != null) {
+                    serverUrl = url.endsWith("/") ? url : url + "/";
+                } else if (destServer != null) {
+                    serverUrl = destServer.startsWith("http") ? destServer : "http://" + destServer + "/";
+                } else {
+                    serverUrl = null;
+                }
+
                 String finalBaseUrl;
 
                 // Use provided baseUrl if specified
@@ -201,9 +211,18 @@ public class DocusaurusProcessor {
                 }
 
                 System.out.println("Updating Docusaurus config BEFORE build: url=" + serverUrl + ", baseUrl=" + finalBaseUrl);
-                // Use destServer as search server (without http:// prefix)
-                String searchServer = destServer.startsWith("http") ?
-                    destServer.replaceAll("^https?://", "").replaceAll("/$", "") : destServer;
+
+                // Use destServer as search server (without http:// prefix), or extract from url if destServer is null
+                String searchServer;
+                if (destServer != null) {
+                    searchServer = destServer.startsWith("http") ?
+                        destServer.replaceAll("^https?://", "").replaceAll("/$", "") : destServer;
+                } else if (url != null) {
+                    searchServer = url.replaceAll("^https?://", "").replaceAll("/$", "");
+                } else {
+                    searchServer = null;
+                }
+
                 com.github.oogasawa.utility.sau3.configjs.DocusaurusConfigUpdator.update(
                     serverUrl, finalBaseUrl, projectDir.toFile(), projectName, searchServer);
 
@@ -428,10 +447,10 @@ public class DocusaurusProcessor {
                     logger.info("Deploying " + projectName);
                     if (destServer != null) {
                         // Remote deployment
-                        deploy(null, destServer, null, projectDir.toString(), null);
+                        deploy(null, destServer, null, projectDir.toString(), null, null);
                     } else {
                         // Local deployment
-                        deploy(null, null, null, projectDir.toString(), null);
+                        deploy(null, null, null, projectDir.toString(), null, null);
                     }
 
                     logger.info("Successfully deployed: " + projectName);

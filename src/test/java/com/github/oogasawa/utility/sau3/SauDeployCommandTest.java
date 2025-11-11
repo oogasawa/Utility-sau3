@@ -240,7 +240,8 @@ public class SauDeployCommandTest {
                 null,
                 null,
                 nonExistentDir.toString(),
-                "/"
+                "/",
+                null
             );
         });
     }
@@ -271,7 +272,8 @@ public class SauDeployCommandTest {
                 null,
                 null,
                 brokenProjectDir.toString(),
-                "/"
+                "/",
+                null
             );
         });
     }
