@@ -41,6 +41,7 @@ public class SauCommands {
         sauIndexCommand();
         sauStartCommand();
         sauIndexUpdateCommand();
+        sauIndexCleanCommand();
         sauIndexWithMappingCommand();
     }
 
@@ -511,6 +512,93 @@ Update a full-text index by reindexing pages that changed recently.
                 java.util.List.of("""
 sau3.java sau:indexUpdate --conf docusaurus_en.conf --days 7
   Reindexes pages modified within the last 7 days for each site in the configuration file.
+"""));
+
+    }
+
+
+    /**  sau:indexClean  */
+    public void sauIndexCleanCommand() {
+        Options opts = new Options();
+
+        opts.addOption(Option.builder("c")
+                        .longOpt("conf")
+                        .hasArg(true)
+                        .argName("conf")
+                        .desc("Configuration files (comma-separated for multiple configs)")
+                        .required(true)
+                        .build());
+
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:indexClean", opts,
+                       "Remove documents from the index that are no longer in the sitemap.",
+                       (CommandLine cl)-> {
+                            logger.info("sau:indexClean");
+                            String configFiles = cl.getOptionValue("conf");
+
+                            String[] configs = configFiles.split(",");
+
+                            for (String configFile : configs) {
+                                configFile = configFile.trim();
+                                logger.info("Processing config: " + configFile);
+
+                                IndexConf indexConf = new IndexConf();
+                                Indexer indexer = new Indexer();
+
+                                try {
+                                    indexConf.readConfigFile(configFile);
+                                    String indexName = indexConf.getIndexName();
+
+                                    // Get all URLs from the index
+                                    List<String> indexedUrls = indexer.getAllDocumentUrls(indexName);
+                                    logger.info("Found " + indexedUrls.size() + " documents in index: " + indexName);
+
+                                    // Get all URLs from sitemaps
+                                    java.util.Set<String> sitemapUrls = new java.util.HashSet<>();
+                                    for (String sitemapUrl : indexConf.getSitemapUrls()) {
+                                        logger.info("Processing sitemap: " + sitemapUrl);
+                                        Sitemap sitemap = new Sitemap();
+                                        sitemap.parse(sitemapUrl);
+                                        for (SitemapEntry entry : sitemap.getSitemapEntries()) {
+                                            sitemapUrls.add(entry.getUrl());
+                                        }
+                                    }
+                                    logger.info("Found " + sitemapUrls.size() + " URLs in sitemaps");
+
+                                    // Find URLs that are in the index but not in the sitemaps
+                                    int deletedCount = 0;
+                                    for (String indexedUrl : indexedUrls) {
+                                        if (!sitemapUrls.contains(indexedUrl)) {
+                                            logger.info("Deleting document no longer in sitemap: " + indexedUrl);
+                                            if (indexer.deleteDocument(indexedUrl, indexName)) {
+                                                deletedCount++;
+                                            }
+                                        }
+                                    }
+
+                                    logger.info("Deleted " + deletedCount + " documents from index: " + indexName);
+
+                                } catch (IOException e) {
+                                    logger.log(Level.SEVERE, String.format("Can not process %s : %s",
+                                                               configFile, e.getMessage()), e);
+                                }
+                            }
+                       });
+
+        registerHelp("sau:indexClean",
+                java.util.List.of("""
+Remove documents from the index that are no longer in the sitemap.
+
+This command is useful for cleaning up old documents that have been deleted from your Docusaurus sites.
+It compares the URLs in your OpenSearch index with the URLs in the sitemaps and deletes any documents
+that are no longer present in the sitemaps.
+"""),
+                java.util.List.of("""
+sau3.java sau:indexClean --conf docusaurus_en.conf
+  Removes documents from the index that are not in the sitemap anymore.
+""",
+                        """
+sau3.java sau:indexClean --conf docusaurus_en.conf,docusaurus_ja.conf
+  Cleans multiple indexes by removing documents that are no longer in their respective sitemaps.
 """));
 
     }

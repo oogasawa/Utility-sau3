@@ -24,9 +24,18 @@ import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.opensearch.action.delete.DeleteRequest;
+import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.RequestOptions;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.builder.SearchSourceBuilder;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class Indexer {
@@ -281,6 +290,82 @@ public class Indexer {
         } catch (IOException e) {
             logger.log(Level.WARNING, "Error checking document existence for: " + url, e);
             return false; // If we can't check, assume it doesn't exist and proceed with indexing
+        } finally {
+            try {
+                client.close();
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Failed to close the client.", e);
+            }
+        }
+    }
+
+    /**
+     * Get all document URLs from the specified index.
+     * This is used to identify documents that are no longer in the sitemap.
+     */
+    public List<String> getAllDocumentUrls(String indexName) {
+        List<String> urls = new ArrayList<>();
+        RestHighLevelClient client = new RestHighLevelClient(
+                RestClient.builder(new HttpHost("localhost", 9200, "http")));
+
+        try {
+            SearchRequest searchRequest = new SearchRequest(indexName);
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+            searchSourceBuilder.size(10000); // Get up to 10000 documents
+            searchSourceBuilder.fetchSource(new String[]{"url"}, null);
+            searchRequest.source(searchSourceBuilder);
+
+            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+
+            for (SearchHit hit : searchResponse.getHits().getHits()) {
+                Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+                String url = (String) sourceAsMap.get("url");
+                if (url != null) {
+                    urls.add(url);
+                }
+            }
+
+            logger.info("Retrieved " + urls.size() + " URLs from index: " + indexName);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Error retrieving document URLs from index: " + indexName, e);
+        } finally {
+            try {
+                client.close();
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Failed to close the client.", e);
+            }
+        }
+
+        return urls;
+    }
+
+    /**
+     * Delete a document from the index by URL.
+     * This is used to remove documents that are no longer in the sitemap.
+     */
+    public boolean deleteDocument(String url, String indexName) {
+        RestHighLevelClient client = new RestHighLevelClient(
+                RestClient.builder(new HttpHost("localhost", 9200, "http")));
+
+        try {
+            String documentId = calculateMD5(url);
+            DeleteRequest deleteRequest = new DeleteRequest(indexName, documentId);
+            DeleteResponse deleteResponse = client.delete(deleteRequest, RequestOptions.DEFAULT);
+
+            if (deleteResponse.getResult() == DeleteResponse.Result.DELETED) {
+                logger.info("Deleted document: " + url);
+                return true;
+            } else if (deleteResponse.getResult() == DeleteResponse.Result.NOT_FOUND) {
+                logger.warning("Document not found for deletion: " + url);
+                return false;
+            } else {
+                logger.warning("Unexpected result when deleting document: " + url + " - " + deleteResponse.getResult());
+                return false;
+            }
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Error deleting document: " + url, e);
+            return false;
         } finally {
             try {
                 client.close();
