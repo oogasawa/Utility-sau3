@@ -40,7 +40,7 @@ public class SauCommands {
         sauBatchDeployCommand();
         sauIndexCommand();
         sauStartCommand();
-        sauUpdateIndexCommand();
+        sauIndexUpdateCommand();
         sauIndexWithMappingCommand();
     }
 
@@ -396,8 +396,8 @@ sau3.java sau:start
 
 
     
-    /**  docusaurus:update_index  */
-    public void sauUpdateIndexCommand() {
+    /**  docusaurus:index_update  */
+    public void sauIndexUpdateCommand() {
         Options opts = new Options();
 
         opts.addOption(Option.builder("conf")
@@ -427,10 +427,10 @@ sau3.java sau:start
                         .required(false)
                         .build());
 
-        this.cmdRepos.addCommand("Docusaurus commands", "sau:updateIndex", updateOpts,
+        this.cmdRepos.addCommand("Docusaurus commands", "sau:indexUpdate", updateOpts,
                        "Update a full text index of multiple Docusaurus sites.",
                        (CommandLine cl)-> {
-                            logger.info("docusaurus:updateIndex");
+                            logger.info("docusaurus:indexUpdate");
                             String configFiles = cl.getOptionValue("conf");
                             int daysBack = Integer.parseInt(cl.getOptionValue("days", "3")); // Default: 3 days
                             logger.info("Looking for updates within last " + daysBack + " days");
@@ -473,12 +473,12 @@ sau3.java sau:start
                             }
                        });
 
-        registerHelp("sau:updateIndex",
+        registerHelp("sau:indexUpdate",
                 java.util.List.of("""
 Update a full-text index by reindexing pages that changed recently.
 """),
                 java.util.List.of("""
-sau3.java sau:updateIndex --conf docusaurus_en.conf --days 7
+sau3.java sau:indexUpdate --conf docusaurus_en.conf --days 7
   Reindexes pages modified within the last 7 days for each site in the configuration file.
 """));
 
